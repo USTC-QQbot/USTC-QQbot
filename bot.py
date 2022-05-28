@@ -97,7 +97,20 @@ async def wtf(event: Event, msg: Message):
     )
 
 
-private_commands = {"/roll": roll, "/time": show_time, "/email": email}
+async def help(event: Event, msg: Message):
+    is_admin = (event.sender.get("user_id", 0) == ADMIN)
+    if event.detail_type == 'group':
+        commands = group_commands
+        if is_admin:
+            commands.update(admin_group_commands)
+    elif event.detail_type == 'private':
+        commands = private_commands
+        if is_admin:
+            commands.update(admin_private_commands)
+    await bot.send(event, "当前可用指令：" + ', '.join(commands))
+
+
+private_commands = {"/roll": roll, "/time": show_time, "/email": email, "/help": help}
 group_commands = {
     "/roll": roll,
     "/time": show_time,
@@ -105,6 +118,7 @@ group_commands = {
     "/rtfm": wtf,
     "/stfw": wtf,
     "/email": email,
+    "/help": help
 }
 admin_private_commands = {"/enable": enable, "/disable": disable}
 admin_group_commands = {"/ban": ban, "/enable": enable, "/disable": disable}
@@ -112,7 +126,7 @@ admin_group_commands = {"/ban": ban, "/enable": enable, "/disable": disable}
 
 @bot.on_message("private")
 async def handle_dm(event: Event):
-    is_admin = event.sender.get("user_id", 0) == ADMIN
+    is_admin = (event.sender.get("user_id", 0) == ADMIN)
     if enabled or is_admin:
         msg: Message = event.message
         cmd = msg_to_txt(msg)
@@ -132,7 +146,7 @@ async def handle_dm(event: Event):
 
 @bot.on_message("group")
 async def handle_msg(event: Event):
-    is_admin = event.sender.get("user_id", 0) == ADMIN
+    is_admin = (event.sender.get("user_id", 0) == ADMIN)
     if enabled or is_admin:
         msg: Message = event.message
         cmd = msg_to_txt(msg)
