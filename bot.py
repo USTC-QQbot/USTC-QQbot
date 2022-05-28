@@ -7,6 +7,7 @@ from urllib.parse import quote
 PORT = 4383
 ADMIN = 364105900
 bot = CQHttp()
+enabled = True
 
 
 def msg_to_txt(msg: Message) -> str:
@@ -70,6 +71,18 @@ async def show_time(event: Event, msg: Message):
     await bot.send(event, f"当前时间：{time_}\n时间戳：{timestamp}")
 
 
+async def enable(event: Event, msg: Message):
+    global enabled
+    enabled = True
+    await bot.send(event, "机器人已启用。")
+
+
+async def disable(event: Event, msg: Message):
+    global enabled
+    enabled = False
+    await bot.send(event, "机器人已禁用。")
+
+
 async def smart_question(event: Event, msg: Message):
     await bot.send(
         event,
@@ -93,46 +106,48 @@ group_commands = {
     "/stfw": wtf,
     "/email": email,
 }
-admin_private_commands = {}
-admin_group_commands = {"/ban": ban}
+admin_private_commands = {"/enable": enable, "/disable": disable}
+admin_group_commands = {"/ban": ban, "/enable": enable, "/disable": disable}
 
 
 @bot.on_message("private")
 async def handle_dm(event: Event):
-    msg: Message = event.message
-    cmd = msg_to_txt(msg)
-    if not cmd:
-        return
     is_admin = event.sender.get("user_id", 0) == ADMIN
-    for k, v in private_commands.items():
-        if cmd.startswith(k):
-            await v(event, msg)
+    if enabled or is_admin:
+        msg: Message = event.message
+        cmd = msg_to_txt(msg)
+        if not cmd:
             return
-    if not is_admin:
-        return
-    for k, v in admin_private_commands.items():
-        if cmd.startswith(k):
-            await v(event, msg)
+        for k, v in private_commands.items():
+            if cmd.startswith(k):
+                await v(event, msg)
+                return
+        if not is_admin:
             return
+        for k, v in admin_private_commands.items():
+            if cmd.startswith(k):
+                await v(event, msg)
+                return
 
 
 @bot.on_message("group")
 async def handle_msg(event: Event):
-    msg: Message = event.message
-    cmd = msg_to_txt(msg)
-    if not cmd:
-        return
     is_admin = event.sender.get("user_id", 0) == ADMIN
-    for k, v in group_commands.items():
-        if cmd.startswith(k):
-            await v(event, msg)
+    if enabled or is_admin:
+        msg: Message = event.message
+        cmd = msg_to_txt(msg)
+        if not cmd:
             return
-    if not is_admin:
-        return
-    for k, v in admin_group_commands.items():
-        if cmd.startswith(k):
-            await v(event, msg)
+        for k, v in group_commands.items():
+            if cmd.startswith(k):
+                await v(event, msg)
+                return
+        if not is_admin:
             return
+        for k, v in admin_group_commands.items():
+            if cmd.startswith(k):
+                await v(event, msg)
+                return
 
 
 bot.run(host="127.0.0.1", port=PORT)
