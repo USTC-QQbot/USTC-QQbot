@@ -2,6 +2,9 @@ from aiocqhttp import CQHttp, Event, Message, MessageSegment
 from time import time, strftime
 from random import randrange
 from urllib.parse import quote
+from inspect import currentframe, getframeinfo
+from os.path import isfile
+from json import load, dump
 
 
 PORT = 4383
@@ -18,10 +21,32 @@ def msg_to_txt(msg: Message) -> str:
     return res.strip()
 
 
+def get_config(func_name: str='', group_id: int=0) -> dict:
+    caller = currentframe().f_back
+    if not func_name:
+        func_name = getframeinfo(caller)[2]
+    if not group_id:
+        event = caller.f_locals.get('event')
+        if not event:
+            return {}
+        if event.detail_type == 'group':
+            group_id = event.group_id
+            paths = ['config_base.json', f'./group_config/{group_id}.json', 'config_override.json']
+        else:
+            paths = ['config_base.json', 'config_override.json']
+    config = {}
+    for path in paths:
+        if not isfile(path): continue
+        with open(path) as f:
+            config.update(load(f).get(func_name, {}))
+    return config
+
+
 async def roll(event, msg: Message):
     cmds = msg_to_txt(msg).split()
     if len(cmds) == 1:
-        await bot.send(event, f"你摇到了 {randrange(1, 7)} ！")
+        config = get_config()
+        await bot.send(event, f"你摇到了 {randrange(config['start'], config['end'] + 1)} ！")
         return
     try:
         start, end = int(cmds[1]), int(cmds[2])
@@ -133,13 +158,13 @@ async def handle_dm(event: Event):
         if not cmd:
             return
         for k, v in private_commands.items():
-            if cmd.startswith(k):
+            if cmd.startswith(k + ' ') or cmd == k:
                 await v(event, msg)
                 return
         if not is_admin:
             return
         for k, v in admin_private_commands.items():
-            if cmd.startswith(k):
+            if cmd.startswith(k + ' ') or cmd == k:
                 await v(event, msg)
                 return
 
@@ -153,13 +178,15 @@ async def handle_msg(event: Event):
         if not cmd:
             return
         for k, v in group_commands.items():
-            if cmd.startswith(k):
-                await v(event, msg)
+            if cmd.startswith(k + ' ') or cmd == k:
+                config = get_config(v.__name__)
+                if config.get('enabled', True):
+                    await v(event, msg)
                 return
         if not is_admin:
             return
         for k, v in admin_group_commands.items():
-            if cmd.startswith(k):
+            if cmd.startswith(k + ' ') or cmd == k:
                 await v(event, msg)
                 return
 
