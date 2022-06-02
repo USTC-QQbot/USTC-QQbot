@@ -64,6 +64,8 @@ def set_config(option: str, value, func_name: str='', group_id: int=0):
         path = "./config_override.json"
     else:
         return
+    if not isfile(path):
+        return
     with open(path, encoding="utf-8") as f:
         config_full = load(f)
     if not config_full.get(func_name):
