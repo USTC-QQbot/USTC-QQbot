@@ -5,6 +5,8 @@ from urllib.parse import quote
 from inspect import currentframe, getframeinfo
 from os.path import isfile
 from json import load, dump, dumps
+from re import search
+from ustc_auth import valid
 
 
 PORT = 4383
@@ -256,6 +258,31 @@ async def handle_msg(event: Event):
             if cmd.startswith(k + " ") or cmd == k:
                 await v(event, msg)
                 return
+
+
+@bot.on_request("group")
+async def handle_group(event: Event):
+    '''Config `mode`: `accept`, `reject`, `all`.
+    COnfig `invite`: `accept`, `reject`, `ignore`.'''
+    config = get_config()
+    if event.sub_type == 'add':
+        flag = False
+        m = search(r"答案：(\d+)", event.comment)
+        if m:
+            flag = valid(event.user_id, m.groups()[0])
+        if config['mode'] == 'accept':
+            if flag:
+                await bot.set_group_add_request(flag=event.flag, sub_type='add', approve=True)
+        elif config['mode'] == 'reject':
+            if not flag:
+                await bot.set_group_add_request(flag=event.flag, sub_type='add', approve=False, reason=config['reason'])
+        elif config['mode'] == 'all':
+            await bot.set_group_add_request(flag=event.flag, sub_type='add', approve=flag, reason=config['reason'])
+    elif event.sub_type == 'invite':
+        if config['invite'] == 'ignore':
+            return
+    else:
+        print(f"Unexpected type: {event.sub_type}")
 
 
 bot.run(host="127.0.0.1", port=PORT)
