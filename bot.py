@@ -21,38 +21,43 @@ def msg_to_txt(msg: Message) -> str:
     return res.strip()
 
 
-def get_config(func_name: str='', group_id: int=0) -> dict:
+def get_config(func_name: str = "", group_id: int = 0) -> dict:
     caller = currentframe().f_back
     if not func_name:
         func_name = getframeinfo(caller)[2]
     if not group_id:
-        event = caller.f_locals.get('event')
+        event = caller.f_locals.get("event")
         if not event:
             return {}
-        if event.detail_type == 'group':
+        if event.detail_type == "group":
             group_id = event.group_id
-            paths = ['config_base.json', f'./group_config/{group_id}.json', 'config_override.json']
+            paths = [
+                "config_base.json",
+                f"./group_config/{group_id}.json",
+                "config_override.json",
+            ]
         else:
-            paths = ['config_base.json', 'config_override.json']
+            paths = ["config_base.json", "config_override.json"]
     config = {}
     for path in paths:
-        if not isfile(path): continue
+        if not isfile(path):
+            continue
         with open(path) as f:
             config.update(load(f).get(func_name, {}))
     return config
 
 
-def set_config(option: str, value, func_name: str='', group_id: int=0):
-    '''Set the config.
-    `group_id`: -1 for base, -2 for override, 0 for auto-retrieve.'''
+def set_config(option: str, value, func_name: str = "", group_id: int = 0):
+    """Set the config.
+    `group_id`: -1 for base, -2 for override, 0 for auto-retrieve."""
     caller = currentframe().f_back
     if not func_name:
         func_name = getframeinfo(caller)[2]
     if not group_id:
-        event = caller.f_locals.get('event')
+        event = caller.f_locals.get("event")
         if not event:
             return
-        if event.detail_type == 'group':
+        if event.detail_type == "group":
             group_id = event.group_id
         else:
             return
@@ -65,9 +70,10 @@ def set_config(option: str, value, func_name: str='', group_id: int=0):
     else:
         return
     if not isfile(path):
-        return
-    with open(path, encoding="utf-8") as f:
-        config_full = load(f)
+        config_full = {}
+    else:
+        with open(path, encoding="utf-8") as f:
+            config_full = load(f)
     if not config_full.get(func_name):
         config_full[func_name] = {}
     config_full[func_name][option] = value
@@ -156,25 +162,26 @@ async def wtf(event: Event, msg: Message):
 
 
 async def help(event: Event, msg: Message):
-    is_admin = (event.sender.get("user_id", 0) == ADMIN)
-    if event.detail_type == 'group':
+    is_admin = event.sender.get("user_id", 0) == ADMIN
+    if event.detail_type == "group":
         commands = group_commands
         if is_admin:
             commands.update(admin_group_commands)
-    elif event.detail_type == 'private':
+    elif event.detail_type == "private":
         commands = private_commands
         if is_admin:
             commands.update(admin_private_commands)
-    await bot.send(event, "当前可用指令：" + ', '.join(commands))
+    await bot.send(event, "当前可用指令：" + ", ".join(commands))
 
 
 async def config_group(event: Event, msg: Message):
-    '''/config <func> (<option> (<value>))'''
+    """/config <func> (<option> (<value>))"""
     cmds = msg_to_txt(msg).split()[1:]
     if not cmds:
         return
-    func = group_commands.get(('' if cmds[0].startswith('/') else '/') + cmds[0], None)
-    if not func: return
+    func = group_commands.get(("" if cmds[0].startswith("/") else "/") + cmds[0], None)
+    if not func:
+        return
     cmds[0] = func.__name__
     config = get_config(cmds[0])
     if len(cmds) == 1:
@@ -183,7 +190,7 @@ async def config_group(event: Event, msg: Message):
         await bot.send(event, str(config.get(cmds[1])))
     elif len(cmds) == 3:
         option, value = cmds[1:]
-        trans = {'true': True, 'false': False}
+        trans = {"true": True, "false": False}
         if value.lower() in trans:
             value = trans[value.lower()]
         set_config(option, value, func_name=cmds[0])
@@ -198,50 +205,55 @@ group_commands = {
     "/rtfm": wtf,
     "/stfw": wtf,
     "/email": email,
-    "/help": help
+    "/help": help,
 }
 admin_private_commands = {"/enable": enable, "/disable": disable}
-admin_group_commands = {"/ban": ban, "/enable": enable, "/disable": disable, "/config": config_group}
+admin_group_commands = {
+    "/ban": ban,
+    "/enable": enable,
+    "/disable": disable,
+    "/config": config_group,
+}
 
 
 @bot.on_message("private")
 async def handle_dm(event: Event):
-    is_admin = (event.sender.get("user_id", 0) == ADMIN)
+    is_admin = event.sender.get("user_id", 0) == ADMIN
     if enabled or is_admin:
         msg: Message = event.message
         cmd = msg_to_txt(msg)
         if not cmd:
             return
         for k, v in private_commands.items():
-            if cmd.startswith(k + ' ') or cmd == k:
+            if cmd.startswith(k + " ") or cmd == k:
                 await v(event, msg)
                 return
         if not is_admin:
             return
         for k, v in admin_private_commands.items():
-            if cmd.startswith(k + ' ') or cmd == k:
+            if cmd.startswith(k + " ") or cmd == k:
                 await v(event, msg)
                 return
 
 
 @bot.on_message("group")
 async def handle_msg(event: Event):
-    is_admin = (event.sender.get("user_id", 0) == ADMIN)
+    is_admin = event.sender.get("user_id", 0) == ADMIN
     if enabled or is_admin:
         msg: Message = event.message
         cmd = msg_to_txt(msg)
         if not cmd:
             return
         for k, v in group_commands.items():
-            if cmd.startswith(k + ' ') or cmd == k:
+            if cmd.startswith(k + " ") or cmd == k:
                 config = get_config(v.__name__)
-                if config.get('enabled', True):
+                if config.get("enabled", True):
                     await v(event, msg)
                 return
         if not is_admin:
             return
         for k, v in admin_group_commands.items():
-            if cmd.startswith(k + ' ') or cmd == k:
+            if cmd.startswith(k + " ") or cmd == k:
                 await v(event, msg)
                 return
 
