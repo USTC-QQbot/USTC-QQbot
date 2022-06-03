@@ -8,9 +8,11 @@ from json import load, dump, dumps
 from re import search
 from ustc_auth import valid
 
-
-PORT = 4383
-ADMIN = 364105900
+with open("config_override.json") as f:
+    config = load(f)
+PORT: int = config['PORT']
+SUPER_USER: int = config['SUPER-USER']
+del config
 bot = CQHttp()
 enabled = True
 
@@ -21,6 +23,14 @@ def msg_to_txt(msg: Message) -> str:
         if seg["type"] == "text":
             res += seg["data"]["text"]
     return res.strip()
+
+
+def get_mentioned(msg: Message) -> set:
+    mentioned = set()
+    for seg in msg:
+        if seg['type'] == 'at':
+            mentioned.add(seg['data']['qq'])
+    return set(map(int, mentioned))
 
 
 def get_config(func_name: str = "", group_id: int = 0) -> dict:
@@ -103,7 +113,7 @@ async def ban(event: Event, msg: Message):
     duration = 60
     for seg in msg:
         if seg["type"] == "at":
-            qqs.add(seg["data"]["qq"])
+            qqs.add(int(seg["data"]["qq"]))
         elif seg["type"] == "text":
             try:
                 duration = int(seg["data"]["text"].strip())
@@ -114,7 +124,7 @@ async def ban(event: Event, msg: Message):
         return
     for qq in qqs:
         await bot.set_group_ban(
-            group_id=event.group_id, user_id=int(qq), duration=duration
+            group_id=event.group_id, user_id=qq, duration=duration
         )
 
 
@@ -164,16 +174,65 @@ async def wtf(event: Event, msg: Message):
 
 
 async def help(event: Event, msg: Message):
-    is_admin = event.sender.get("user_id", 0) == ADMIN
+    admins = get_config("admins").get("list", [])
+    is_su = event.sender.get("user_id", 0) == SUPER_USER
+    is_admin = (is_su or (event.sender.get("user_id", 0) in admins))
     if event.detail_type == "group":
         commands = group_commands
         if is_admin:
             commands.update(admin_group_commands)
+        if is_su:
+            commands.update(su_group_commands)
     elif event.detail_type == "private":
         commands = private_commands
-        if is_admin:
-            commands.update(admin_private_commands)
+        if is_su:
+            commands.update(su_private_commands)
     await bot.send(event, "当前可用指令：" + ", ".join(commands))
+
+
+async def admin(event: Event, msg: Message):
+    cmds = msg_to_txt(msg).split()[1:]
+    admins: list = get_config().get('list', [])
+    mentioned = get_mentioned(msg)
+    if not cmds:
+        await bot.send(event, "此群的机器人管理员：" + (", ".join(map(str, admins)) if admins else "None"))
+        return
+    elif len(cmds) == 1:
+        cmd = cmds[0]
+        reply = "?"
+        if cmd == 'clear':
+            admins = []
+            reply = "此群的机器人管理员已清空。"
+        elif cmd == 'show':
+            reply = "此群的机器人管理员：" + (", ".join(map(str, admins)) if admins else "None")
+        elif cmd == 'add':
+            reply = "已添加以下人员为群组机器人管理员："
+            flag = False
+            for candidate in mentioned:
+                if candidate not in admins:
+                    flag = True
+                    admins.append(candidate)
+                    reply += f"{candidate}, "
+            if not flag:
+                reply = "未添加任何群组机器人管理员。"
+            else:
+                reply = reply[:-2]
+        elif cmd == 'del' or cmd == 'remove':
+            reply = "已移除以下群组机器人管理员："
+            flag = False
+            for candidate in mentioned:
+                if candidate in admins:
+                    flag = True
+                    admins.remove(candidate)
+                    reply += f"{candidate}, "
+            if not flag:
+                reply = "未移除任何群组机器人管理员。"
+            else:
+                reply = reply[:-2]
+        set_config("list", admins)
+        await bot.send(event, reply)
+    else:
+        await bot.send(event, "参数过多！")
 
 
 async def config_group(event: Event, msg: Message):
@@ -209,19 +268,24 @@ group_commands = {
     "/email": email,
     "/help": help,
 }
-admin_private_commands = {"/enable": enable, "/disable": disable}
 admin_group_commands = {
     "/ban": ban,
+    "/config": config_group,
+}
+su_private_commands = {"/enable": enable, "/disable": disable}
+su_group_commands = {
+    # "/ban": ban,
     "/enable": enable,
     "/disable": disable,
-    "/config": config_group,
+    "/admin": admin
+    # "/config": config_group,
 }
 
 
 @bot.on_message("private")
 async def handle_dm(event: Event):
-    is_admin = event.sender.get("user_id", 0) == ADMIN
-    if enabled or is_admin:
+    is_su = (event.sender.get("user_id", 0) == SUPER_USER)
+    if enabled or is_su:
         msg: Message = event.message
         cmd = msg_to_txt(msg)
         if not cmd:
@@ -230,9 +294,9 @@ async def handle_dm(event: Event):
             if cmd.startswith(k + " ") or cmd == k:
                 await v(event, msg)
                 return
-        if not is_admin:
+        if not is_su:
             return
-        for k, v in admin_private_commands.items():
+        for k, v in su_private_commands.items():
             if cmd.startswith(k + " ") or cmd == k:
                 await v(event, msg)
                 return
@@ -240,8 +304,10 @@ async def handle_dm(event: Event):
 
 @bot.on_message("group")
 async def handle_msg(event: Event):
-    is_admin = event.sender.get("user_id", 0) == ADMIN
-    if enabled or is_admin:
+    admins = get_config("admins").get("list", [])
+    is_su = (event.sender.get("user_id", 0) == SUPER_USER)
+    is_admin = (is_su or (event.sender.get("user_id", 0) in admins))
+    if enabled or is_su:
         msg: Message = event.message
         cmd = msg_to_txt(msg)
         if not cmd:
@@ -255,6 +321,12 @@ async def handle_msg(event: Event):
         if not is_admin:
             return
         for k, v in admin_group_commands.items():
+            if cmd.startswith(k + " ") or cmd == k:
+                await v(event, msg)
+                return
+        if not is_su:
+            return
+        for k, v in su_group_commands.items():
             if cmd.startswith(k + " ") or cmd == k:
                 await v(event, msg)
                 return
