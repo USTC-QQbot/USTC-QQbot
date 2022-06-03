@@ -1,0 +1,12 @@
+{
+    "roll": {
+        "enabled": true,
+        "start": 1,
+        "end": 6
+    },
+    "handle_group": {
+        "mode": "accept",
+        "invite": "ignore",
+        "reason": "https://qq.ustc.life/ 证明码验证失败！"
+    }
+}
