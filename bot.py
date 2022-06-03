@@ -178,13 +178,13 @@ async def help(event: Event, msg: Message):
     is_su = event.sender.get("user_id", 0) == SUPER_USER
     is_admin = (is_su or (event.sender.get("user_id", 0) in admins))
     if event.detail_type == "group":
-        commands = group_commands
+        commands = dict(group_commands)
         if is_admin:
             commands.update(admin_group_commands)
         if is_su:
             commands.update(su_group_commands)
     elif event.detail_type == "private":
-        commands = private_commands
+        commands = dict(private_commands)
         if is_su:
             commands.update(su_private_commands)
     await bot.send(event, "当前可用指令：" + ", ".join(commands))
