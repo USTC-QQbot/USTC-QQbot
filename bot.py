@@ -174,7 +174,7 @@ async def wtf(event: Event, msg: Message):
 
 
 async def help(event: Event, msg: Message):
-    admins = get_config("admins").get("list", [])
+    admins = get_config("admin").get("list", [])
     is_su = event.sender.get("user_id", 0) == SUPER_USER
     is_admin = (is_su or (event.sender.get("user_id", 0) in admins))
     if event.detail_type == "group":
@@ -304,7 +304,7 @@ async def handle_dm(event: Event):
 
 @bot.on_message("group")
 async def handle_msg(event: Event):
-    admins = get_config("admins").get("list", [])
+    admins = get_config("admin").get("list", [])
     is_su = (event.sender.get("user_id", 0) == SUPER_USER)
     is_admin = (is_su or (event.sender.get("user_id", 0) in admins))
     if enabled or is_su:
