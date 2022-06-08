@@ -1,4 +1,5 @@
 {
     "PORT": 1234,
-    "SUPER-USER" : 12345678
+    "SUPER-USER" : 12345678,
+    "CQ-PATH": "../go_cqhttp/"
 }
