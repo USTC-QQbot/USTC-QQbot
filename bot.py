@@ -2,7 +2,9 @@ from aiocqhttp import CQHttp, Event, Message, MessageSegment
 from time import time, strftime
 from random import randrange
 from urllib.parse import quote
+from requests import get
 from inspect import currentframe, getframeinfo
+from os import remove
 from os.path import isfile
 from json import load, dump, dumps
 from re import search
@@ -12,6 +14,7 @@ with open("config_override.json") as f:
     config = load(f)
 PORT: int = config['PORT']
 SUPER_USER: int = config['SUPER-USER']
+CQ_PATH: str = config['CQ-PATH']
 del config
 bot = CQHttp()
 enabled = True
@@ -141,6 +144,19 @@ async def email(event: Event, msg: Message):
     )
 
 
+async def latex(event: Event, msg: Message):
+    config = get_config()
+    formula = msg_to_txt(msg).removeprefix('/latex').strip()
+    if not formula: return
+    r = get(r'https://latex.codecogs.com/png.image?\dpi{750}\bg{white}' + formula)
+    fname = f'{int(time())}.png'
+    path = CQ_PATH + '/data/images/' + fname
+    with open(path, 'wb') as f:
+        f.write(r.content)
+    await bot.send(event, Message(MessageSegment.image(fname) + config['format'].format(formula)))
+    remove(path)
+
+
 async def show_time(event: Event, msg: Message):
     timestamp = int(time())
     time_ = strftime("%Y-%m-%d %H:%M:%S")
@@ -258,7 +274,7 @@ async def config_group(event: Event, msg: Message):
         await bot.send(event, "Success.")
 
 
-private_commands = {"/roll": roll, "/time": show_time, "/email": email, "/help": help}
+private_commands = {"/roll": roll, "/time": show_time, "/email": email, "/help": help, "/latex": latex}
 group_commands = {
     "/roll": roll,
     "/time": show_time,
@@ -267,6 +283,7 @@ group_commands = {
     "/stfw": wtf,
     "/email": email,
     "/help": help,
+    "/latex": latex
 }
 admin_group_commands = {
     "/ban": ban,
