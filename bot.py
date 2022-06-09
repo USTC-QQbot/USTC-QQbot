@@ -100,13 +100,18 @@ def set_config(option: str, value, func_name: str = "", group_id: int = 0):
 
 
 async def roll(event, msg: Message):
+    '''生成随机数。
+
+    /roll - 生成配置文件中指定范围 (默认 1 ~ 6) 的随机数。
+    /roll <start> <end> - 生成 [<start>, <end>] 的随机数。
+    '''
     cmds = msg_to_txt(msg).split()
     if len(cmds) == 1:
         config = get_config()
         await bot.send(event, f"你摇到了 {randrange(config['start'], config['end'] + 1)} ！")
         return
     try:
-        start, end = int(cmds[1]), int(cmds[2])
+        start, end = int(cmds[1]), (int(cmds[2]) + 1)
         result = randrange(start, end)
     except:
         await bot.send(event, "参数错误！")
@@ -115,6 +120,12 @@ async def roll(event, msg: Message):
 
 
 async def ban(event: Event, msg: Message):
+    '''禁言指定用户。
+
+    /ban *@someone <duration> - 禁言提及的人员 <duration>s 。
+    a. 可指定多位成员，@全体成员则全体禁言。
+    b. <duration> 未指定则为 60 ，指定为 0 则取消禁言。
+    '''
     qqs = set()
     duration = 60
     for seg in msg:
@@ -133,6 +144,7 @@ async def ban(event: Event, msg: Message):
 
 
 async def query(event: Event, msg: Message):
+    '''站内搜索: /query <keyword> 。'''
     config = get_config()
     cmd = msg_to_txt(msg)
     cmds = cmd.split()
@@ -148,6 +160,7 @@ async def query(event: Event, msg: Message):
 
 
 async def latex(event: Event, msg: Message):
+    '''渲染 Latex 公式: /latex <formula> 。'''
     formula = msg_to_txt(msg).removeprefix("/latex").strip()
     if not formula:
         return
@@ -176,24 +189,28 @@ async def latex(event: Event, msg: Message):
 
 
 async def show_time(event: Event, msg: Message):
+    '''发送当前时间及时间戳。'''
     timestamp = int(time())
     time_ = strftime("%Y-%m-%d %H:%M:%S")
     await bot.send(event, f"当前时间：{time_}\n时间戳：{timestamp}")
 
 
 async def enable(event: Event, msg: Message):
+    '''启用机器人。'''
     global enabled
     enabled = True
     await bot.send(event, "机器人已启用。")
 
 
 async def disable(event: Event, msg: Message):
+    '''禁用机器人。'''
     global enabled
     enabled = False
     await bot.send(event, "机器人已禁用。")
 
 
 async def smart_question(event: Event, msg: Message):
+    '''发送《提问的智慧》链接。'''
     await bot.send(
         event,
         "《提问的智慧》\n  [简中]USTC LUG: https://lug.ustc.edu.cn/wiki/doc/smart-questions/\n  [繁/简]Github: https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way\n  [英语]原文: http://www.catb.org/~esr/faqs/smart-questions.html\n  [简中]思维导图：https://ld246.com/article/1536732337028",
@@ -201,6 +218,7 @@ async def smart_question(event: Event, msg: Message):
 
 
 async def wtf(event: Event, msg: Message):
+    '''RTFM/STFW 是什么意思？'''
     await bot.send(
         event,
         "RTFM/STFW 是什么意思？\n  [简中]USTC LUG: https://lug.ustc.edu.cn/wiki/doc/smart-questions/#%E5%A6%82%E4%BD%95%E8%A7%A3%E8%AF%BB%E7%AD%94%E6%A1%88\n  [繁/简]Github: https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way#rtfm%E5%92%8Cstfw%E5%A6%82%E4%BD%95%E7%9F%A5%E9%81%93%E4%BD%A0%E5%B7%B2%E5%AE%8C%E5%85%A8%E6%90%9E%E7%A0%B8%E4%BA%86\n  [英语]原文: http://www.catb.org/~esr/faqs/smart-questions.html#rtfm",
@@ -208,6 +226,12 @@ async def wtf(event: Event, msg: Message):
 
 
 async def help(event: Event, msg: Message):
+    '''显示帮助信息。
+
+    /help - 列出可用指令。
+    /help <func> - 展示 <func> 的帮助信息。
+    '''
+    command = '/' + msg_to_txt(msg).removeprefix('/help').strip().removeprefix('/')
     admins = get_config("admin").get("list", [])
     is_su = event.sender.get("user_id", 0) == SUPER_USER
     is_admin = is_su or (event.sender.get("user_id", 0) in admins)
@@ -221,16 +245,29 @@ async def help(event: Event, msg: Message):
         commands = dict(private_commands)
         if is_su:
             commands.update(su_private_commands)
-    await bot.send(event, "当前可用指令：" + ", ".join(commands))
+    if command == '/':
+        await bot.send(event, "可用指令: " + ", ".join(commands))
+    elif command in commands:
+        func = commands[command]
+        await bot.send(event, func.__doc__.strip() if func.__doc__ else "此指令没有帮助信息。")
+    else:
+        await bot.send(event, f'没有名为 "{command}" 的指令。')
 
 
 async def admin(event: Event, msg: Message):
+    '''控制群聊的机器人管理员。
+
+    /admin (list) - 列出所有机器人管理员。
+    /admin add *@someone - 把提及的人设为机器人管理员。
+    /admin rm/del/remove *@someone - 把提及的人移出机器人管理员。
+    /admin clear - 移除所有机器人管理员。
+    '''
     cmds = msg_to_txt(msg).split()[1:]
     admins: list = get_config().get("list", [])
     mentioned = get_mentioned(msg)
     if not cmds:
         await bot.send(
-            event, "此群的机器人管理员：" + (", ".join(map(str, admins)) if admins else "None")
+            event, "群聊的机器人管理员: " + (", ".join(map(str, admins)) if admins else "None")
         )
         return
     elif len(cmds) == 1:
@@ -238,11 +275,11 @@ async def admin(event: Event, msg: Message):
         reply = "?"
         if cmd == "clear":
             admins = []
-            reply = "此群的机器人管理员已清空。"
-        elif cmd == "show":
-            reply = "此群的机器人管理员：" + (", ".join(map(str, admins)) if admins else "None")
+            reply = "已移除所有机器人管理员。"
+        elif cmd == "list":
+            reply = "群聊的机器人管理员: " + (", ".join(map(str, admins)) if admins else "None")
         elif cmd == "add":
-            reply = "已添加以下人员为群组机器人管理员："
+            reply = "将以下人员设为机器人管理员: "
             flag = False
             for candidate in mentioned:
                 if candidate not in admins:
@@ -250,11 +287,11 @@ async def admin(event: Event, msg: Message):
                     admins.append(candidate)
                     reply += f"{candidate}, "
             if not flag:
-                reply = "未添加任何群组机器人管理员。"
+                reply = "未添加任何人为机器人管理员。"
             else:
                 reply = reply[:-2]
-        elif cmd == "del" or cmd == "remove":
-            reply = "已移除以下群组机器人管理员："
+        elif cmd in ("rm", "del", "remove"):
+            reply = "将以下人员移出机器人管理员: "
             flag = False
             for candidate in mentioned:
                 if candidate in admins:
@@ -262,17 +299,22 @@ async def admin(event: Event, msg: Message):
                     admins.remove(candidate)
                     reply += f"{candidate}, "
             if not flag:
-                reply = "未移除任何群组机器人管理员。"
+                reply = "未将任何人移出机器人管理员。"
             else:
                 reply = reply[:-2]
         set_config("list", admins)
         await bot.send(event, reply)
     else:
-        await bot.send(event, "参数过多！")
+        await bot.send(event, "过多参数！")
 
 
 async def config_group(event: Event, msg: Message):
-    """/config <func> (<option> (<value>))"""
+    """修改机器人的群聊配置。
+
+    /config <func> - 展示 <func> 的当前配置。
+    /config <func> <option> - 展示 <option> 的当前值。
+    /config <func> <option> <value> - 把 <option> 的值设为 <value> 。
+    """
     cmds = msg_to_txt(msg).split()[1:]
     if not cmds:
         return
@@ -291,7 +333,7 @@ async def config_group(event: Event, msg: Message):
         if value.lower() in trans:
             value = trans[value.lower()]
         set_config(option, value, func_name=cmds[0])
-        await bot.send(event, "Success.")
+        await bot.send(event, "操作成功。")
 
 
 private_commands = {
