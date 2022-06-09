@@ -21,6 +21,7 @@ del config
 bot = CQHttp()
 enabled = True
 rcParams["text.usetex"] = True
+rcParams["text.latex.preamble"] = r"\usepackage{amsmath}"
 
 
 def msg_to_txt(msg: Message) -> str:
@@ -165,10 +166,10 @@ async def latex(event: Event, msg: Message):
             pad_inches=0.05,
         )
     except RuntimeError:
-        await bot.send(event, "Invalid equation.")
+        await bot.send(event, config["fail"])
         return
     await bot.send(
-        event, Message(MessageSegment.image(fname) + config["format"].format(formula))
+        event, Message(MessageSegment.image(fname))
     )
     remove(path)
 
