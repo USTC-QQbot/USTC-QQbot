@@ -4,6 +4,11 @@
         "start": 1,
         "end": 6
     },
+    "query": {
+        "insufficient": "参数不足！",
+        "format": "{0}老师的搜索结果：{1}",
+        "engine": "https://cn.bing.com/search?q={}+site%3Austc.edu.cn"
+    },
     "handle_group": {
         "mode": "accept",
         "invite": "ignore",

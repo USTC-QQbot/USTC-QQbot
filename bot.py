@@ -132,21 +132,22 @@ async def ban(event: Event, msg: Message):
         await bot.set_group_ban(group_id=event.group_id, user_id=qq, duration=duration)
 
 
-async def email(event: Event, msg: Message):
+async def query(event: Event, msg: Message):
+    config = get_config()
     cmd = msg_to_txt(msg)
     cmds = cmd.split()
     if len(cmds) == 1:
-        await bot.send(event, "参数不足！")
+        await bot.send(event, config['insufficient'])
         return
     teacher = cmds[1]
+    url = config['engine'].format(quote(teacher))
     await bot.send(
         event,
-        f"{teacher}老师的搜索结果：https://cn.bing.com/search?q={quote(teacher)}+site%3Austc.edu.cn",
+        config['format'].format(teacher, url)
     )
 
 
 async def latex(event: Event, msg: Message):
-    config = get_config()
     formula = msg_to_txt(msg).removeprefix("/latex").strip()
     if not formula:
         return
@@ -165,6 +166,7 @@ async def latex(event: Event, msg: Message):
             pad_inches=0.05,
         )
     except RuntimeError:
+        config = get_config()
         await bot.send(event, config["fail"])
         return
     await bot.send(
@@ -295,7 +297,7 @@ async def config_group(event: Event, msg: Message):
 private_commands = {
     "/roll": roll,
     "/time": show_time,
-    "/email": email,
+    "/query": query,
     "/help": help,
     "/latex": latex,
 }
@@ -305,7 +307,7 @@ group_commands = {
     "/提问的智慧": smart_question,
     "/rtfm": wtf,
     "/stfw": wtf,
-    "/email": email,
+    "/query": query,
     "/help": help,
     "/latex": latex,
 }
