@@ -155,14 +155,18 @@ async def latex(event: Event, msg: Message):
     fig.text(0, 0, formula_, fontsize=18)
     fname = f"latex_{int(time())}.png"
     path = CQ_PATH + "/data/images/" + fname
-    fig.savefig(
-        path,
-        dpi=750,
-        transparent=False,
-        format=fname.split(".")[1],
-        bbox_inches="tight",
-        pad_inches=0.05,
-    )
+    try:
+        fig.savefig(
+            path,
+            dpi=750,
+            transparent=False,
+            format=fname.split(".")[1],
+            bbox_inches="tight",
+            pad_inches=0.05,
+        )
+    except RuntimeError:
+        await bot.send(event, "Invalid equation.")
+        return
     await bot.send(
         event, Message(MessageSegment.image(fname) + config["format"].format(formula))
     )
