@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+from matplotlib import rcParams
 from aiocqhttp import CQHttp, Event, Message, MessageSegment
 from time import time, strftime
 from random import randrange
@@ -12,12 +14,13 @@ from ustc_auth import valid
 
 with open("config_override.json") as f:
     config = load(f)
-PORT: int = config['PORT']
-SUPER_USER: int = config['SUPER-USER']
-CQ_PATH: str = config['CQ-PATH']
+PORT: int = config["PORT"]
+SUPER_USER: int = config["SUPER-USER"]
+CQ_PATH: str = config["CQ-PATH"]
 del config
 bot = CQHttp()
 enabled = True
+rcParams["text.usetex"] = True
 
 
 def msg_to_txt(msg: Message) -> str:
@@ -31,8 +34,8 @@ def msg_to_txt(msg: Message) -> str:
 def get_mentioned(msg: Message) -> set:
     mentioned = set()
     for seg in msg:
-        if seg['type'] == 'at':
-            mentioned.add(seg['data']['qq'])
+        if seg["type"] == "at":
+            mentioned.add(seg["data"]["qq"])
     return set(map(int, mentioned))
 
 
@@ -126,9 +129,7 @@ async def ban(event: Event, msg: Message):
         await bot.set_group_whole_ban(group_id=event.group_id, enable=bool(duration))
         return
     for qq in qqs:
-        await bot.set_group_ban(
-            group_id=event.group_id, user_id=qq, duration=duration
-        )
+        await bot.set_group_ban(group_id=event.group_id, user_id=qq, duration=duration)
 
 
 async def email(event: Event, msg: Message):
@@ -146,14 +147,25 @@ async def email(event: Event, msg: Message):
 
 async def latex(event: Event, msg: Message):
     config = get_config()
-    formula = msg_to_txt(msg).removeprefix('/latex').strip()
-    if not formula: return
-    r = get(r'https://latex.codecogs.com/png.image?\dpi{750}\bg{white}' + formula)
-    fname = f'{int(time())}.png'
-    path = CQ_PATH + '/data/images/' + fname
-    with open(path, 'wb') as f:
-        f.write(r.content)
-    await bot.send(event, Message(MessageSegment.image(fname) + config['format'].format(formula)))
+    formula = msg_to_txt(msg).removeprefix("/latex").strip()
+    if not formula:
+        return
+    formula_ = f"${formula}$"
+    fig = plt.figure(figsize=(0.01, 0.01))
+    fig.text(0, 0, formula_, fontsize=18)
+    fname = f"latex_{int(time())}.png"
+    path = CQ_PATH + "/data/images/" + fname
+    fig.savefig(
+        path,
+        dpi=750,
+        transparent=False,
+        format=fname.split(".")[1],
+        bbox_inches="tight",
+        pad_inches=0.05,
+    )
+    await bot.send(
+        event, Message(MessageSegment.image(fname) + config["format"].format(formula))
+    )
     remove(path)
 
 
@@ -192,7 +204,7 @@ async def wtf(event: Event, msg: Message):
 async def help(event: Event, msg: Message):
     admins = get_config("admin").get("list", [])
     is_su = event.sender.get("user_id", 0) == SUPER_USER
-    is_admin = (is_su or (event.sender.get("user_id", 0) in admins))
+    is_admin = is_su or (event.sender.get("user_id", 0) in admins)
     if event.detail_type == "group":
         commands = dict(group_commands)
         if is_admin:
@@ -208,20 +220,22 @@ async def help(event: Event, msg: Message):
 
 async def admin(event: Event, msg: Message):
     cmds = msg_to_txt(msg).split()[1:]
-    admins: list = get_config().get('list', [])
+    admins: list = get_config().get("list", [])
     mentioned = get_mentioned(msg)
     if not cmds:
-        await bot.send(event, "此群的机器人管理员：" + (", ".join(map(str, admins)) if admins else "None"))
+        await bot.send(
+            event, "此群的机器人管理员：" + (", ".join(map(str, admins)) if admins else "None")
+        )
         return
     elif len(cmds) == 1:
         cmd = cmds[0]
         reply = "?"
-        if cmd == 'clear':
+        if cmd == "clear":
             admins = []
             reply = "此群的机器人管理员已清空。"
-        elif cmd == 'show':
+        elif cmd == "show":
             reply = "此群的机器人管理员：" + (", ".join(map(str, admins)) if admins else "None")
-        elif cmd == 'add':
+        elif cmd == "add":
             reply = "已添加以下人员为群组机器人管理员："
             flag = False
             for candidate in mentioned:
@@ -233,7 +247,7 @@ async def admin(event: Event, msg: Message):
                 reply = "未添加任何群组机器人管理员。"
             else:
                 reply = reply[:-2]
-        elif cmd == 'del' or cmd == 'remove':
+        elif cmd == "del" or cmd == "remove":
             reply = "已移除以下群组机器人管理员："
             flag = False
             for candidate in mentioned:
@@ -274,7 +288,13 @@ async def config_group(event: Event, msg: Message):
         await bot.send(event, "Success.")
 
 
-private_commands = {"/roll": roll, "/time": show_time, "/email": email, "/help": help, "/latex": latex}
+private_commands = {
+    "/roll": roll,
+    "/time": show_time,
+    "/email": email,
+    "/help": help,
+    "/latex": latex,
+}
 group_commands = {
     "/roll": roll,
     "/time": show_time,
@@ -283,7 +303,7 @@ group_commands = {
     "/stfw": wtf,
     "/email": email,
     "/help": help,
-    "/latex": latex
+    "/latex": latex,
 }
 admin_group_commands = {
     "/ban": ban,
@@ -301,7 +321,7 @@ su_group_commands = {
 
 @bot.on_message("private")
 async def handle_dm(event: Event):
-    is_su = (event.sender.get("user_id", 0) == SUPER_USER)
+    is_su = event.sender.get("user_id", 0) == SUPER_USER
     if enabled or is_su:
         msg: Message = event.message
         cmd = msg_to_txt(msg)
@@ -322,8 +342,8 @@ async def handle_dm(event: Event):
 @bot.on_message("group")
 async def handle_msg(event: Event):
     admins = get_config("admin").get("list", [])
-    is_su = (event.sender.get("user_id", 0) == SUPER_USER)
-    is_admin = (is_su or (event.sender.get("user_id", 0) in admins))
+    is_su = event.sender.get("user_id", 0) == SUPER_USER
+    is_admin = is_su or (event.sender.get("user_id", 0) in admins)
     if enabled or is_su:
         msg: Message = event.message
         cmd = msg_to_txt(msg)
@@ -351,28 +371,36 @@ async def handle_msg(event: Event):
 
 @bot.on_request("group")
 async def handle_group(event: Event):
-    '''Config `mode`: `accept`, `reject`, `all`.
-    COnfig `invite`: `accept`, `reject`, `ignore`.'''
+    """Config `mode`: `accept`, `reject`, `all`.
+    COnfig `invite`: `accept`, `reject`, `ignore`."""
     config = get_config()
-    if event.sub_type == 'add':
+    if event.sub_type == "add":
         flag = False
         m = search(r"答案：(\d+)", event.comment)
         if m:
             flag = valid(event.user_id, m.groups()[0])
-        if config['mode'] == 'accept':
+        if config["mode"] == "accept":
             if flag:
-                await bot.set_group_add_request(flag=event.flag, sub_type='add', approve=True)
-        elif config['mode'] == 'reject':
+                await bot.set_group_add_request(
+                    flag=event.flag, sub_type="add", approve=True
+                )
+        elif config["mode"] == "reject":
             if not flag:
-                await bot.set_group_add_request(flag=event.flag, sub_type='add', approve=False, reason=config['reason'])
-        elif config['mode'] == 'all':
-            await bot.set_group_add_request(flag=event.flag, sub_type='add', approve=flag, reason=config['reason'])
-    elif event.sub_type == 'invite':
-        if config['invite'] == 'ignore':
+                await bot.set_group_add_request(
+                    flag=event.flag,
+                    sub_type="add",
+                    approve=False,
+                    reason=config["reason"],
+                )
+        elif config["mode"] == "all":
+            await bot.set_group_add_request(
+                flag=event.flag, sub_type="add", approve=flag, reason=config["reason"]
+            )
+    elif event.sub_type == "invite":
+        if config["invite"] == "ignore":
             return
     else:
         print(f"Unexpected type: {event.sub_type}")
 
 
 bot.run(host="127.0.0.1", port=PORT)
-
