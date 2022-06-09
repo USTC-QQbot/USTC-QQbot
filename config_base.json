@@ -10,6 +10,6 @@
         "reason": "https://qq.ustc.life/ 证明码验证失败！"
     },
     "latex": {
-        "fail": "Invalid equation."
+        "fail": "公式错误！"
     }
 }

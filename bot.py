@@ -4,7 +4,6 @@ from aiocqhttp import CQHttp, Event, Message, MessageSegment
 from time import time, strftime
 from random import randrange
 from urllib.parse import quote
-from requests import get
 from inspect import currentframe, getframeinfo
 from os import remove
 from os.path import isfile
