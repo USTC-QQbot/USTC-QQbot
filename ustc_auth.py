@@ -15,5 +15,3 @@ def valid(qq, code):
         print(f'Unexpected result at code {code}.')
         print(r.url)
         return False
-
-print(valid(364105900, 725440))
