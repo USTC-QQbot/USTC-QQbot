@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from aiocqhttp import CQHttp, Event, Message, MessageSegment
 from time import time, strftime
-from random import randrange
+from random import randrange, random
 from urllib.parse import quote
 from inspect import currentframe, getframeinfo
 from os import remove
@@ -100,6 +100,22 @@ def set_config(option: str, value, func_name: str = "", group_id: int = 0):
         dump(config_full, f, indent=4)
 
 
+async def can_ban(event: Event) -> bool:
+    '''是否能够禁言发送者'''
+    group_id = event.group_id
+    sender = event.sender['user_id']
+    if sender == 80000000:
+        return False
+    self = await bot.get_group_member_info(group_id=group_id, user_id=event.self_id)
+    sender = await bot.get_group_member_info(group_id=group_id, user_id=sender)
+    if sender["role"] == "owner" or self["role"] == "member":
+        return False
+    elif self["role"] == "owner":
+        return True
+    else:
+        return (sender["role"] == "member")
+
+
 async def roll(event, msg: Message):
     '''生成随机数。
 
@@ -137,6 +153,10 @@ async def ban(event: Event, msg: Message):
                 duration = int(seg["data"]["text"].strip())
             except:
                 pass
+    role = await bot.get_group_member_info(group_id=event.group_id, user_id=event.self_id)
+    role = role["role"]
+    if role == "member":
+        return
     if "all" in qqs:
         await bot.set_group_whole_ban(group_id=event.group_id, enable=bool(duration))
         return
@@ -256,6 +276,23 @@ async def notice(event: Event, msg: Message):
         await bot.send(event, "请传入合法参数！")
 
 
+async def turntable(event: Event, msg: Message):
+    '''随机决定是否禁言指定范围内的一段时间。'''
+    config = get_config()
+    sender = event.sender['user_id']
+    if not await can_ban(event):
+        await bot.send(event, config['reject'])
+        return
+    nickname = await bot.get_group_member_info(group_id=event.group_id, user_id=sender)
+    nickname = nickname["nickname"]
+    if random() < config['probability']:
+        duration = randrange(config['min'], config['max'] + 1)
+        await bot.set_group_ban(group_id=event.group_id, user_id=sender, duration=duration)
+        await bot.send(event, config['prompt_ban'].format(nickname, duration))
+    else:
+        await bot.send(event, config["prompt_safe"].format(nickname))
+
+
 async def help(event: Event, msg: Message):
     '''显示帮助信息。
 
@@ -280,7 +317,7 @@ async def help(event: Event, msg: Message):
         await bot.send(event, "可用指令: " + ", ".join(commands))
     elif command in commands:
         func = commands[command]
-        await bot.send(event, func.__doc__.strip() if func.__doc__ else "此指令没有帮助信息。")
+        await bot.send(event, f"函数名: {func.__name__}\n" + func.__doc__.strip() if func.__doc__ else "此指令没有帮助信息。")
     else:
         await bot.send(event, f'没有名为 "{command}" 的指令。')
 
@@ -386,7 +423,8 @@ group_commands = {
     "/help": help,
     "/latex": latex,
     "/news": news,
-    "/notice": notice
+    "/notice": notice,
+    "/毛子转盘": turntable
 }
 admin_group_commands = {
     "/ban": ban,
