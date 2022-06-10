@@ -10,6 +10,7 @@ from os.path import isfile
 from json import load, dump, dumps
 from re import search
 from ustc_auth import valid
+from ustc_news import request_rss
 
 with open("config_override.json") as f:
     config = load(f)
@@ -225,6 +226,36 @@ async def wtf(event: Event, msg: Message):
     )
 
 
+async def news(event: Event, msg: Message):
+    '''获取科大要闻。
+
+    /news - 获取 10 条科大要闻。
+    /news <i> - 查看第 <i> 条的摘要与链接。
+    '''
+    arg = msg_to_txt(msg).removeprefix('/news').strip()
+    if not arg:
+        await bot.send(event, request_rss(0))
+    elif arg.isdigit():
+        await bot.send(event, request_rss(0, int(arg)))
+    else:
+        await bot.send(event, "请传入合法参数！")
+
+
+async def notice(event: Event, msg: Message):
+    '''获取通知公告。
+
+    /notice - 获取 10 条通知公告。
+    /notice <i> - 查看第 <i> 条的摘要与链接。
+    '''
+    arg = msg_to_txt(msg).removeprefix('/notice').strip()
+    if not arg:
+        await bot.send(event, request_rss(1))
+    elif arg.isdigit():
+        await bot.send(event, request_rss(1, int(arg)))
+    else:
+        await bot.send(event, "请传入合法参数！")
+
+
 async def help(event: Event, msg: Message):
     '''显示帮助信息。
 
@@ -342,6 +373,8 @@ private_commands = {
     "/query": query,
     "/help": help,
     "/latex": latex,
+    "/news": news,
+    "/notice": notice
 }
 group_commands = {
     "/roll": roll,
@@ -352,6 +385,8 @@ group_commands = {
     "/query": query,
     "/help": help,
     "/latex": latex,
+    "/news": news,
+    "/notice": notice
 }
 admin_group_commands = {
     "/ban": ban,
