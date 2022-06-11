@@ -1,6 +1,5 @@
 {
     "roll": {
-        "enabled": true,
         "start": 1,
         "end": 6
     },

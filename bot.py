@@ -6,8 +6,6 @@ from random import randrange, random
 from urllib.parse import quote
 from inspect import currentframe, getframeinfo
 from os import remove, listdir
-
-# from os.path import isfile
 from json import load, dump, dumps
 from re import search
 from ustc_auth import valid
@@ -69,8 +67,7 @@ def get_config(func_name: str = "", group_id: int = 0) -> dict:
 
 
 def set_config(option: str, value, func_name: str = "", group_id: int = 0):
-    """Set the config.
-    `group_id`: -1 for base, -2 for override, 0 for auto-retrieve."""
+    """Set group config."""
     caller = currentframe().f_back
     if not func_name:
         func_name = getframeinfo(caller)[2]
@@ -84,10 +81,6 @@ def set_config(option: str, value, func_name: str = "", group_id: int = 0):
             return
     if group_id >= 0:
         path = f"./group_config/{group_id}.json"
-    elif group_id == -1:
-        path = "./config_base.json"
-    elif group_id == -2:
-        path = "./config_override.json"
     else:
         return
     group_config = full_config.get(group_id, {})
@@ -96,8 +89,46 @@ def set_config(option: str, value, func_name: str = "", group_id: int = 0):
     func_config.update(group_config.get(func_name, {}))
     func_config[option] = value
     group_config[func_name] = func_config
+    full_config[group_id] = group_config
     with open(path, "w", encoding="utf-8") as f:
         dump(group_config, f, indent=4)
+
+
+def unset_config(func_name: str = "", option = None, group_id: int = 0) -> bool:
+    """Unset the config."""
+    caller = currentframe().f_back
+    if not func_name:
+        func_name = getframeinfo(caller)[2]
+    if not group_id:
+        event = caller.f_locals.get("event")
+        if not event:
+            return False
+        if event.detail_type == "group":
+            group_id = event.group_id
+        else:
+            return False
+    if group_id >= 0:
+        path = f"./group_config/{group_id}.json"
+    else:
+        return False
+    group_config = full_config.get(group_id, {})
+    base_config = full_config.get("base", {})
+    func_config = base_config.get(func_name, {})
+    if not func_name in group_config:
+        return False
+    if option != None:
+        func_config.update(group_config.get(func_name, {}))
+        if option in base_config.get(func_name, {}):
+            func_config[option] = base_config[func_name][option]
+        else:
+            return False
+        group_config[func_name] = func_config
+    else:
+        del group_config[func_name]
+    full_config[group_id] = group_config
+    with open(path, "w", encoding="utf-8") as f:
+        dump(group_config, f, indent=4)
+    return True
 
 
 async def can_ban(event: Event) -> bool:
@@ -386,13 +417,29 @@ async def config_group(event: Event, msg: Message):
     /config <func> - 展示 <func> 的当前配置。
     /config <func> <option> - 展示 <option> 的当前值。
     /config <func> <option> <value> - 把 <option> 的值设为 <value> 。
+    /config unset <func> - 重置 <func> 的群组配置。
+    /config unset <func> <option> - 重置 <option> 的值。
     """
     cmds = msg_to_txt(msg).split()[1:]
     if not cmds:
         return
+    if cmds[0] == 'unset':
+        if len(cmds) == 1:
+            await bot.send(event, "参数不足！")
+            return
+        elif len(cmds) == 2:
+            flag = unset_config(cmds[1])
+        elif len(cmds) == 3:
+            flag = unset_config(cmds[1], cmds[2])
+        else:
+            await bot.send(event, "参数过多！")
+            return
+        await bot.send(event, "重置成功。" if flag else "重置失败！")
+        return
     func = group_commands.get(("" if cmds[0].startswith("/") else "/") + cmds[0], None)
     if not func:
-        await bot.send("未找到指定函数。")
+        await bot.send(event, "未找到指定函数。")
+        return
     cmds[0] = func.__name__
     config = get_config(cmds[0])
     if len(cmds) == 1:
