@@ -83,9 +83,9 @@ def set_config(option: str, value, func_name: str = "", group_id: int = 0):
         path = f"./group_config/{group_id}.json"
     else:
         return
-    group_config = full_config.get(group_id, {})
-    base_config = full_config.get("base", {})
-    func_config = base_config.get(func_name, {})
+    group_config = dict(full_config.get(group_id, {}))
+    base_config = dict(full_config.get("base", {}))
+    func_config = dict(base_config.get(func_name, {}))
     func_config.update(group_config.get(func_name, {}))
     func_config[option] = value
     group_config[func_name] = func_config
@@ -94,7 +94,7 @@ def set_config(option: str, value, func_name: str = "", group_id: int = 0):
         dump(group_config, f, indent=4)
 
 
-def unset_config(func_name: str = "", option = None, group_id: int = 0) -> bool:
+def unset_config(func_name: str = "", option = None, group_id: int = 0) -> str:
     """Unset the config."""
     caller = currentframe().f_back
     if not func_name:
@@ -102,33 +102,33 @@ def unset_config(func_name: str = "", option = None, group_id: int = 0) -> bool:
     if not group_id:
         event = caller.f_locals.get("event")
         if not event:
-            return False
+            return "内部错误 - 未找到 event ！"
         if event.detail_type == "group":
             group_id = event.group_id
         else:
-            return False
+            return "只能在群聊使用！"
     if group_id >= 0:
         path = f"./group_config/{group_id}.json"
     else:
-        return False
-    group_config = full_config.get(group_id, {})
-    base_config = full_config.get("base", {})
-    func_config = base_config.get(func_name, {})
+        return "内部错误 - group_id 非法！"
+    group_config = dict(full_config.get(group_id, {}))
+    base_config = dict(full_config.get("base", {}))
+    func_config = dict(base_config.get(func_name, {}))
     if not func_name in group_config:
-        return False
+        return "此函数不存在或没有配置。"
     if option != None:
         func_config.update(group_config.get(func_name, {}))
         if option in base_config.get(func_name, {}):
             func_config[option] = base_config[func_name][option]
         else:
-            return False
+            return "非法的 option ！"
         group_config[func_name] = func_config
     else:
         del group_config[func_name]
     full_config[group_id] = group_config
     with open(path, "w", encoding="utf-8") as f:
         dump(group_config, f, indent=4)
-    return True
+    return "重置成功！"
 
 
 async def can_ban(event: Event) -> bool:
@@ -419,6 +419,7 @@ async def config_group(event: Event, msg: Message):
     /config <func> <option> <value> - 把 <option> 的值设为 <value> 。
     /config unset <func> - 重置 <func> 的群组配置。
     /config unset <func> <option> - 重置 <option> 的值。
+    /config reload - 重新加载配置。
     """
     cmds = msg_to_txt(msg).split()[1:]
     if not cmds:
@@ -428,13 +429,17 @@ async def config_group(event: Event, msg: Message):
             await bot.send(event, "参数不足！")
             return
         elif len(cmds) == 2:
-            flag = unset_config(cmds[1])
+            ret = unset_config(cmds[1])
         elif len(cmds) == 3:
-            flag = unset_config(cmds[1], cmds[2])
+            ret = unset_config(cmds[1], cmds[2])
         else:
             await bot.send(event, "参数过多！")
             return
-        await bot.send(event, "重置成功。" if flag else "重置失败！")
+        await bot.send(event, ret)
+        return
+    elif cmds[0] == 'reload':
+        load_config()
+        await bot.send(event, "已重新加载配置。")
         return
     func = group_commands.get(("" if cmds[0].startswith("/") else "/") + cmds[0], None)
     if not func:
@@ -451,7 +456,7 @@ async def config_group(event: Event, msg: Message):
         trans = {"true": True, "false": False}
         if value.lower() in trans:
             value = trans[value.lower()]
-        if value.isdigit:
+        if value.isdigit():
             value = int(value)
         set_config(option, value, func_name=cmds[0])
         await bot.send(event, "操作成功。")

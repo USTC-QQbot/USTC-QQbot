@@ -135,3 +135,4 @@ test/
 /group_config/*
 config_base.json
 config_override.json
+.vscode
