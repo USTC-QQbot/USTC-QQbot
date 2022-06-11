@@ -39,7 +39,6 @@ def request_news(src):
 
 
 def get_newspaper(num=0):
-    """no为期数,默认获取最新一期中国科大报"""
     con = get("https://zgkdb.ustc.edu.cn/")
     con.encoding = con.apparent_encoding
     con = con.text

@@ -5,23 +5,13 @@ from time import time, strftime
 from random import randrange, random
 from urllib.parse import quote
 from inspect import currentframe, getframeinfo
-from os import remove
-from os.path import isfile
+from os import remove, listdir
+
+# from os.path import isfile
 from json import load, dump, dumps
 from re import search
 from ustc_auth import valid
 from ustc_news import request_rss
-
-with open("config_override.json") as f:
-    config = load(f)
-PORT: int = config["PORT"]
-SUPER_USER: int = config["SUPER-USER"]
-CQ_PATH: str = config["CQ-PATH"]
-del config
-bot = CQHttp()
-enabled = True
-rcParams["text.usetex"] = True
-rcParams["text.latex.preamble"] = r"\usepackage{amsmath}"
 
 
 def msg_to_txt(msg: Message) -> str:
@@ -40,6 +30,21 @@ def get_mentioned(msg: Message) -> set:
     return set(map(int, mentioned))
 
 
+def load_config():
+    global full_config
+    full_config = {}
+    with open("./config_base.json") as f:
+        full_config["base"] = load(f)
+    group_configs = filter(
+        lambda path: path.endswith(".json"), listdir("./group_config")
+    )
+    for group_config in group_configs:
+        with open("./group_config/" + group_config) as f:
+            full_config[int(group_config[:-5])] = load(f)
+    with open("./config_override.json") as f:
+        full_config["override"] = load(f)
+
+
 def get_config(func_name: str = "", group_id: int = 0) -> dict:
     caller = currentframe().f_back
     if not func_name:
@@ -50,19 +55,16 @@ def get_config(func_name: str = "", group_id: int = 0) -> dict:
             return {}
         if event.detail_type == "group":
             group_id = event.group_id
-            paths = [
-                "config_base.json",
-                f"./group_config/{group_id}.json",
-                "config_override.json",
+            attrs = [
+                "base",
+                group_id,
+                "override",
             ]
         else:
-            paths = ["config_base.json", "config_override.json"]
+            attrs = ["base", "override"]
     config = {}
-    for path in paths:
-        if not isfile(path):
-            continue
-        with open(path) as f:
-            config.update(load(f).get(func_name, {}))
+    for attr in attrs:
+        config.update(full_config.get(attr, {}).get(func_name, {}))
     return config
 
 
@@ -88,22 +90,20 @@ def set_config(option: str, value, func_name: str = "", group_id: int = 0):
         path = "./config_override.json"
     else:
         return
-    if not isfile(path):
-        config_full = {}
-    else:
-        with open(path, encoding="utf-8") as f:
-            config_full = load(f)
-    if not config_full.get(func_name):
-        config_full[func_name] = {}
-    config_full[func_name][option] = value
+    group_config = full_config.get(group_id, {})
+    base_config = full_config.get("base", {})
+    func_config = base_config.get(func_name, {})
+    func_config.update(group_config.get(func_name, {}))
+    func_config[option] = value
+    group_config[func_name] = func_config
     with open(path, "w", encoding="utf-8") as f:
-        dump(config_full, f, indent=4)
+        dump(group_config, f, indent=4)
 
 
 async def can_ban(event: Event) -> bool:
-    '''是否能够禁言发送者'''
+    """是否能够禁言发送者"""
     group_id = event.group_id
-    sender = event.sender['user_id']
+    sender = event.sender["user_id"]
     if sender == 80000000:
         return False
     self = await bot.get_group_member_info(group_id=group_id, user_id=event.self_id)
@@ -113,15 +113,15 @@ async def can_ban(event: Event) -> bool:
     elif self["role"] == "owner":
         return True
     else:
-        return (sender["role"] == "member")
+        return sender["role"] == "member"
 
 
 async def roll(event, msg: Message):
-    '''生成随机数。
+    """生成随机数。
 
     /roll - 生成配置文件中指定范围 (默认 1 ~ 6) 的随机数。
     /roll <start> <end> - 生成 [<start>, <end>] 的随机数。
-    '''
+    """
     cmds = msg_to_txt(msg).split()
     if len(cmds) == 1:
         config = get_config()
@@ -137,12 +137,12 @@ async def roll(event, msg: Message):
 
 
 async def ban(event: Event, msg: Message):
-    '''禁言指定用户。
+    """禁言指定用户。
 
     /ban *@someone <duration> - 禁言提及的人员 <duration>s 。
     a. 可指定多位成员，@全体成员则全体禁言。
     b. <duration> 未指定则为 60 ，指定为 0 则取消禁言。
-    '''
+    """
     qqs = set()
     duration = 60
     for seg in msg:
@@ -153,7 +153,9 @@ async def ban(event: Event, msg: Message):
                 duration = int(seg["data"]["text"].strip())
             except:
                 pass
-    role = await bot.get_group_member_info(group_id=event.group_id, user_id=event.self_id)
+    role = await bot.get_group_member_info(
+        group_id=event.group_id, user_id=event.self_id
+    )
     role = role["role"]
     if role == "member":
         return
@@ -165,23 +167,20 @@ async def ban(event: Event, msg: Message):
 
 
 async def query(event: Event, msg: Message):
-    '''站内搜索: /query <keyword> 。'''
+    """站内搜索: /query <keyword> 。"""
     config = get_config()
     cmd = msg_to_txt(msg)
     cmds = cmd.split()
     if len(cmds) == 1:
-        await bot.send(event, config['insufficient'])
+        await bot.send(event, config["insufficient"])
         return
     teacher = cmds[1]
-    url = config['engine'].format(quote(teacher))
-    await bot.send(
-        event,
-        config['format'].format(teacher, url)
-    )
+    url = config["engine"].format(quote(teacher))
+    await bot.send(event, config["format"].format(teacher, url))
 
 
 async def latex(event: Event, msg: Message):
-    '''渲染 Latex 公式: /latex <formula> 。'''
+    """渲染 Latex 公式: /latex <formula> 。"""
     formula = msg_to_txt(msg).removeprefix("/latex").strip()
     if not formula:
         return
@@ -203,35 +202,33 @@ async def latex(event: Event, msg: Message):
         config = get_config()
         await bot.send(event, config["fail"])
         return
-    await bot.send(
-        event, Message(MessageSegment.image(fname))
-    )
+    await bot.send(event, Message(MessageSegment.image(fname)))
     remove(path)
 
 
 async def show_time(event: Event, msg: Message):
-    '''发送当前时间及时间戳。'''
+    """发送当前时间及时间戳。"""
     timestamp = int(time())
     time_ = strftime("%Y-%m-%d %H:%M:%S")
     await bot.send(event, f"当前时间：{time_}\n时间戳：{timestamp}")
 
 
 async def enable(event: Event, msg: Message):
-    '''启用机器人。'''
+    """启用机器人。"""
     global enabled
     enabled = True
     await bot.send(event, "机器人已启用。")
 
 
 async def disable(event: Event, msg: Message):
-    '''禁用机器人。'''
+    """禁用机器人。"""
     global enabled
     enabled = False
     await bot.send(event, "机器人已禁用。")
 
 
 async def smart_question(event: Event, msg: Message):
-    '''发送《提问的智慧》链接。'''
+    """发送《提问的智慧》链接。"""
     await bot.send(
         event,
         "《提问的智慧》\n  [简中]USTC LUG: https://lug.ustc.edu.cn/wiki/doc/smart-questions/\n  [繁/简]Github: https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way\n  [英语]原文: http://www.catb.org/~esr/faqs/smart-questions.html\n  [简中]思维导图：https://ld246.com/article/1536732337028",
@@ -239,7 +236,7 @@ async def smart_question(event: Event, msg: Message):
 
 
 async def wtf(event: Event, msg: Message):
-    '''RTFM/STFW 是什么意思？'''
+    """RTFM/STFW 是什么意思？"""
     await bot.send(
         event,
         "RTFM/STFW 是什么意思？\n  [简中]USTC LUG: https://lug.ustc.edu.cn/wiki/doc/smart-questions/#%E5%A6%82%E4%BD%95%E8%A7%A3%E8%AF%BB%E7%AD%94%E6%A1%88\n  [繁/简]Github: https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way#rtfm%E5%92%8Cstfw%E5%A6%82%E4%BD%95%E7%9F%A5%E9%81%93%E4%BD%A0%E5%B7%B2%E5%AE%8C%E5%85%A8%E6%90%9E%E7%A0%B8%E4%BA%86\n  [英语]原文: http://www.catb.org/~esr/faqs/smart-questions.html#rtfm",
@@ -247,12 +244,12 @@ async def wtf(event: Event, msg: Message):
 
 
 async def news(event: Event, msg: Message):
-    '''获取科大要闻。
+    """获取科大要闻。
 
     /news - 获取 10 条科大要闻。
     /news <i> - 查看第 <i> 条的摘要与链接。
-    '''
-    arg = msg_to_txt(msg).removeprefix('/news').strip()
+    """
+    arg = msg_to_txt(msg).removeprefix("/news").strip()
     if not arg:
         await bot.send(event, request_rss(0))
     elif arg.isdigit():
@@ -262,12 +259,12 @@ async def news(event: Event, msg: Message):
 
 
 async def notice(event: Event, msg: Message):
-    '''获取通知公告。
+    """获取通知公告。
 
     /notice - 获取 10 条通知公告。
     /notice <i> - 查看第 <i> 条的摘要与链接。
-    '''
-    arg = msg_to_txt(msg).removeprefix('/notice').strip()
+    """
+    arg = msg_to_txt(msg).removeprefix("/notice").strip()
     if not arg:
         await bot.send(event, request_rss(1))
     elif arg.isdigit():
@@ -277,29 +274,31 @@ async def notice(event: Event, msg: Message):
 
 
 async def turntable(event: Event, msg: Message):
-    '''随机决定是否禁言指定范围内的一段时间。'''
+    """随机决定是否禁言指定范围内的一段时间。"""
     config = get_config()
-    sender = event.sender['user_id']
+    sender = event.sender["user_id"]
     if not await can_ban(event):
-        await bot.send(event, config['reject'])
+        await bot.send(event, config["reject"])
         return
     nickname = await bot.get_group_member_info(group_id=event.group_id, user_id=sender)
     nickname = nickname["nickname"]
-    if random() < config['probability']:
-        duration = randrange(config['min'], config['max'] + 1)
-        await bot.set_group_ban(group_id=event.group_id, user_id=sender, duration=duration)
-        await bot.send(event, config['prompt_ban'].format(nickname, duration))
+    if random() < config["probability"]:
+        duration = randrange(config["min"], config["max"] + 1)
+        await bot.set_group_ban(
+            group_id=event.group_id, user_id=sender, duration=duration
+        )
+        await bot.send(event, config["prompt_ban"].format(nickname, duration))
     else:
         await bot.send(event, config["prompt_safe"].format(nickname))
 
 
 async def help(event: Event, msg: Message):
-    '''显示帮助信息。
+    """显示帮助信息。
 
     /help - 列出可用指令。
     /help <func> - 展示 <func> 的帮助信息。
-    '''
-    command = '/' + msg_to_txt(msg).removeprefix('/help').strip().removeprefix('/')
+    """
+    command = "/" + msg_to_txt(msg).removeprefix("/help").strip().removeprefix("/")
     admins = get_config("admin").get("list", [])
     is_su = event.sender.get("user_id", 0) == SUPER_USER
     is_admin = is_su or (event.sender.get("user_id", 0) in admins)
@@ -313,23 +312,28 @@ async def help(event: Event, msg: Message):
         commands = dict(private_commands)
         if is_su:
             commands.update(su_private_commands)
-    if command == '/':
+    if command == "/":
         await bot.send(event, "可用指令: " + ", ".join(commands))
     elif command in commands:
         func = commands[command]
-        await bot.send(event, f"函数名: {func.__name__}\n" + func.__doc__.strip() if func.__doc__ else "此指令没有帮助信息。")
+        await bot.send(
+            event,
+            f"函数名: {func.__name__}\n" + func.__doc__.strip()
+            if func.__doc__
+            else "此指令没有帮助信息。",
+        )
     else:
         await bot.send(event, f'没有名为 "{command}" 的指令。')
 
 
 async def admin(event: Event, msg: Message):
-    '''控制群聊的机器人管理员。
+    """控制群聊的机器人管理员。
 
     /admin (list) - 列出所有机器人管理员。
     /admin add *@someone - 把提及的人设为机器人管理员。
     /admin rm/del/remove *@someone - 把提及的人移出机器人管理员。
     /admin clear - 移除所有机器人管理员。
-    '''
+    """
     cmds = msg_to_txt(msg).split()[1:]
     admins: list = get_config().get("list", [])
     mentioned = get_mentioned(msg)
@@ -388,7 +392,7 @@ async def config_group(event: Event, msg: Message):
         return
     func = group_commands.get(("" if cmds[0].startswith("/") else "/") + cmds[0], None)
     if not func:
-        return
+        await bot.send("未找到指定函数。")
     cmds[0] = func.__name__
     config = get_config(cmds[0])
     if len(cmds) == 1:
@@ -400,9 +404,21 @@ async def config_group(event: Event, msg: Message):
         trans = {"true": True, "false": False}
         if value.lower() in trans:
             value = trans[value.lower()]
+        if value.isdigit:
+            value = int(value)
         set_config(option, value, func_name=cmds[0])
         await bot.send(event, "操作成功。")
 
+
+full_config = {}
+load_config()
+PORT: int = full_config["override"].get("PORT")
+SUPER_USER: int = full_config["override"].get("SUPER-USER")
+CQ_PATH: str = full_config["override"].get("CQ-PATH")
+bot = CQHttp()
+enabled = True
+rcParams["text.usetex"] = True
+rcParams["text.latex.preamble"] = r"\usepackage{amsmath}"
 
 private_commands = {
     "/roll": roll,
@@ -411,7 +427,7 @@ private_commands = {
     "/help": help,
     "/latex": latex,
     "/news": news,
-    "/notice": notice
+    "/notice": notice,
 }
 group_commands = {
     "/roll": roll,
@@ -424,7 +440,7 @@ group_commands = {
     "/latex": latex,
     "/news": news,
     "/notice": notice,
-    "/毛子转盘": turntable
+    "/毛子转盘": turntable,
 }
 admin_group_commands = {
     "/ban": ban,
