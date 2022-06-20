@@ -1,15 +1,17 @@
-import matplotlib.pyplot as plt
-from matplotlib import rcParams
 from aiocqhttp import CQHttp, Event, Message, MessageSegment
 from time import time, strftime
 from random import randrange, random
 from urllib.parse import quote
 from inspect import currentframe, getframeinfo
 from os import remove, listdir
+from os.path import isfile
 from json import load, dump, dumps
+import matplotlib.pyplot as plt
+from matplotlib import rcParams
 from re import search
 from ustc_auth import valid
 from ustc_news import request_rss
+from ustc_young import Young
 
 
 def msg_to_txt(msg: Message) -> str:
@@ -94,7 +96,7 @@ def set_config(option: str, value, func_name: str = "", group_id: int = 0):
         dump(group_config, f, indent=4)
 
 
-def unset_config(func_name: str = "", option = None, group_id: int = 0) -> str:
+def unset_config(func_name: str = "", option=None, group_id: int = 0) -> str:
     """Unset the config."""
     caller = currentframe().f_back
     if not func_name:
@@ -129,6 +131,16 @@ def unset_config(func_name: str = "", option = None, group_id: int = 0) -> str:
     with open(path, "w", encoding="utf-8") as f:
         dump(group_config, f, indent=4)
     return "重置成功！"
+
+
+def get_cred(qq: int):
+    path = f"./credential/{qq}.json"
+    if not isfile(path):
+        cred = {}
+    else:
+        with open(path, encoding="utf-8") as f:
+            cred: dict = load(f)
+    return cred
 
 
 async def can_ban(event: Event) -> bool:
@@ -289,6 +301,30 @@ async def news(event: Event, msg: Message):
         await bot.send(event, "请传入合法参数！")
 
 
+async def young(event: Event, msg: Message):
+    """获取二课活动。
+
+    * 需要通过私聊命令 /cred 配置私人凭据中 username 和 password 为学号和密码。
+    e.g. /cred username PBxxxxxxx, /cred password xxxxxx
+    """
+    sender = event.sender.get("user_id", 0)
+    if not sender:
+        return
+    cred = get_cred(sender)
+    username = cred.get("username", None)
+    password = cred.get("password", None)
+    if username == None or password == None:
+        await bot.send(event, "凭据不足！")
+        return
+    try:
+        clint = Young(username, password)
+    except AttributeError:
+        await bot.send(event, "凭据错误！")
+        return
+    r = clint.get_activity()
+    await bot.send(event, r)
+
+
 async def notice(event: Event, msg: Message):
     """获取通知公告。
 
@@ -424,7 +460,7 @@ async def config_group(event: Event, msg: Message):
     cmds = msg_to_txt(msg).split()[1:]
     if not cmds:
         return
-    if cmds[0] == 'unset':
+    if cmds[0] == "unset":
         if len(cmds) == 1:
             await bot.send(event, "参数不足！")
             return
@@ -437,7 +473,7 @@ async def config_group(event: Event, msg: Message):
             return
         await bot.send(event, ret)
         return
-    elif cmds[0] == 'reload':
+    elif cmds[0] == "reload":
         load_config()
         await bot.send(event, "已重新加载配置。")
         return
@@ -462,6 +498,48 @@ async def config_group(event: Event, msg: Message):
         await bot.send(event, "操作成功。")
 
 
+async def credential(event: Event, msg: Message):
+    """查看/修改个人凭据信息。
+
+    /cred - 查看所有保存的凭据信息。
+    /cred <name> - 查看凭据内 <name> 项的值。
+    /cred <name> <value> - 新建/修改 <name> 的值为 <value> 。
+    /cred del <name> - 删除 <name> 的值。
+    /cred del - 删除所有凭据。
+    """
+    sender = event.sender.get("user_id", 0)
+    if not sender:
+        return
+    path = f"./credential/{sender}.json"
+    cred = get_cred(sender)
+    cmds = msg_to_txt(msg).split()[1:]
+    if not cmds:
+        await bot.send(event, dumps(cred, indent=4, ensure_ascii=False))
+        return
+    if len(cmds) == 1:
+        if cmds[0] == "del":
+            remove(path)
+            await bot.send(event, "操作成功。")
+            return
+        else:
+            await bot.send(
+                event, "此项不存在。" if not cmds[0] in cred else str(cred[cmds[0]])
+            )
+            return
+    elif len(cmds) == 2:
+        if cmds[0] == "del":
+            if cmds[1] in cred:
+                del cred[cmds[1]]
+            else:
+                await bot.send(event, "此项不存在。")
+                return
+        else:
+            cred[cmds[0]] = int(cmds[1]) if cmds[1].isdigit() else cmds[1]
+    with open(path, "w", encoding="utf-8") as f:
+        dump(cred, f, indent=4, ensure_ascii=False)
+    await bot.send(event, "操作成功。")
+
+
 full_config = {}
 load_config()
 PORT: int = full_config["override"].get("PORT")
@@ -480,6 +558,8 @@ private_commands = {
     "/latex": latex,
     "/news": news,
     "/notice": notice,
+    "/cred": credential,
+    "/young": young,
 }
 group_commands = {
     "/roll": roll,
