@@ -1,5 +1,5 @@
-import requests
-import json
+from requests import Session
+from json import loads
 import pandas as pd
 from bs4 import BeautifulSoup
 from random import choices
@@ -9,6 +9,7 @@ from time import time
 
 class Young:
     def __init__(self, username, password):
+        self.logged_in = False
         self.modules = {
             "d": "德",
             "z": "智",
@@ -18,7 +19,7 @@ class Young:
         }
         self.username = username
         self.password = password
-        self.session = requests.session()
+        self.session = Session()
         self.session.headers.update({
             "Connection": "keep-alive",
             "Pragma": "no-cache",
@@ -41,16 +42,8 @@ class Young:
         })
         session_id = "".join(choices(ascii_letters + digits, k=32)).upper()
         self.session.cookies.update({"JSESSIONID": session_id, "lang": "zh"})
+        self.token = ''
 
-        self.login_url = "https://passport.ustc.edu.cn/login?service=https%3A%2F%2Fyoung.ustc.edu.cn%2Flogin%2Fsc-wisdom-group-learning%2F"
-        self.service_url = "https://young.ustc.edu.cn/login"
-        self.logout_url = "https://young.ustc.edu.cn/login/wisdom-group-learning-bg/sys/logout"
-
-        self.log_header = {
-            "cookie": "sduuid=; nginx_auth_uid=; nginx_auth_expire=2000000000; nginx_auth_hash=; JSESSIONID=",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.124 Safari/537.36 Edg/102.0.1245.41",
-            "x-access-token": self.get_token(),
-        }
 
     class Activity(object):
         def __init__(
@@ -101,38 +94,41 @@ class Young:
             }
 
     def login(self):
-        r = self.session.get(self.login_url).text
+        login_url = "https://passport.ustc.edu.cn/login?service=https%3A%2F%2Fyoung.ustc.edu.cn%2Flogin%2Fsc-wisdom-group-learning%2F"
+        r = self.session.get(login_url).text
         soup = BeautifulSoup(r, "html.parser")
         cas_lt = soup.find("input", {"name": "CAS_LT"})["value"]
         form_data = {
             "model": "uplogin.jsp",
             "CAS_LT": cas_lt,
-            "service": self.service_url,
+            "service": "https://young.ustc.edu.cn/login",
             "warn": "",
             "showCode": "",
             "username": self.username,
             "password": self.password,
             "button": "",
         }
-        r = self.session.post(self.login_url, data=form_data, allow_redirects=False)
-        assert r.status_code == 302, f"Unexpected status code {r.status_code}"
-        return r
-
-    def __del__(self):
-        r = self.session.post(
-            self.logout_url, headers=self.log_header, allow_redirects=False
-        )
-        assert r.status_code == 200, f"Failed to logout with status code {r.status_code}"
-
-    def get_token(self):
-        r = self.login()
+        r = self.session.post(login_url, data=form_data, allow_redirects=False)
+        if r.status_code == 302:
+            self.logged_in = True
+        else:
+            return False, "无法登录，请尝试检查用户名和密码！"
         url = r.headers["location"]
         ticket = url.split("ticket=")[1]
         get_token_url = f"https://young.ustc.edu.cn/login/wisdom-group-learning-bg/cas/client/checkSsoLogin?_t={int(time())}&ticket={ticket}&service=https:%2F%2Fyoung.ustc.edu.cn%2Flogin%2Fsc-wisdom-group-learning%2F"
         data = self.session.get(get_token_url).json()
-        assert data["code"] == 200, f'Failed to get token with code {data["code"]}'
+        if data["code"] != 200:
+            return False, "无法获取 X-Access-Token ！"
         token = data["result"]["token"]
-        return token
+        self.session.headers.update({"x-access-token": token,
+        })
+        return True, "登录成功！"
+
+    def __del__(self):
+        r = self.session.post(
+            "https://young.ustc.edu.cn/login/wisdom-group-learning-bg/sys/logout", allow_redirects=False
+        )
+        assert r.status_code == 200, f"Failed to logout with status code {r.status_code}"
 
     def get_activity(self, hide_entered=True):
         cnt = 0
@@ -142,7 +138,7 @@ class Young:
         while cnt < total_num:
             url = f"https://young.ustc.edu.cn/login/wisdom-group-learning-bg/item/scItem/enrolmentList?_t=&column=createTime&order=desc&field=id,,action&pageNo={page_num}&pageSize=10"
             page_num = page_num + 1
-            con = json.loads(requests.get(url, headers=self.log_header).text)["result"]
+            con = loads(self.session.get(url).text)["result"]
             total_num = int(con["total"])
             cnt += int(con["size"])
             records = con["records"]
@@ -153,8 +149,8 @@ class Young:
                         "https://young.ustc.edu.cn/login/wisdom-group-learning-bg/item/scItem/selectSignChirdItem?_t=&id="
                         + id
                     )
-                    children_con = requests.get(children_url, headers=self.log_header)
-                    children_records = json.loads(children_con.text)["result"]
+                    children_con = self.session.get(children_url)
+                    children_records = loads(children_con.text)["result"]
 
                     children_res = []
                     for children_item in children_records:
@@ -233,6 +229,7 @@ if __name__ == "__main__":
     username = ""
     password = ""
     young = Young(username, password)
+    young.login()
     print(young.get_activity())
     del young
 

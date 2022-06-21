@@ -325,10 +325,10 @@ async def young(event: Event, msg: Message):
     if username == None or password == None:
         await bot.send(event, "凭据不足！")
         return
-    try:
-        clint = Young(username, password)
-    except AttributeError:
-        await bot.send(event, "凭据错误！")
+    clint = Young(username, password)
+    res = clint.login()
+    if not res[0]:
+        await bot.send(event, res[1])
         return
     r = clint.get_activity(hide_entered=not show_all)
     await bot.send(event, r)
