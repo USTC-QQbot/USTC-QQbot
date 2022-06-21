@@ -304,9 +304,18 @@ async def news(event: Event, msg: Message):
 async def young(event: Event, msg: Message):
     """获取二课活动。
 
+    /young - 获取未参加可报名的二课。
+    /young all - 获取所有可报名的二课。
     * 需要通过私聊命令 /cred 配置私人凭据中 username 和 password 为学号和密码。
     e.g. /cred username PBxxxxxxx, /cred password xxxxxx
     """
+    cmds = msg_to_txt(msg).split()
+    show_all = False
+    if len(cmds) == 2 and cmds[1] == 'all':
+        show_all = True
+    elif len(cmds) != 1:
+        await bot.send(event, "参数错误！")
+        return
     sender = event.sender.get("user_id", 0)
     if not sender:
         return
@@ -321,7 +330,7 @@ async def young(event: Event, msg: Message):
     except AttributeError:
         await bot.send(event, "凭据错误！")
         return
-    r = clint.get_activity()
+    r = clint.get_activity(hide_entered=not show_all)
     await bot.send(event, r)
 
 

@@ -67,6 +67,7 @@ class Young:
             series: str,
             status: str = None,
             series_name: str = None,
+            registered: bool = False
         ):
             self.name = name
             self.apply_end_time = apply_end_time
@@ -80,6 +81,7 @@ class Young:
             self.series = series
             self.status = status
             self.series_name = series_name
+            self.registered = registered
 
         def to_dict(self):
             return {
@@ -95,6 +97,7 @@ class Young:
                 "是否系列活动": self.series,
                 "当前活动状态": self.status,
                 "系列活动名称": self.series_name,
+                "报名状态": self.registered
             }
 
     def login(self):
@@ -131,13 +134,13 @@ class Young:
         token = data["result"]["token"]
         return token
 
-    def get_activity(self):
+    def get_activity(self, hide_entered=True):
         cnt = 0
         page_num = 1
         total_num = 1
         res = []
         while cnt < total_num:
-            url = f"https://young.ustc.edu.cn/login/wisdom-group-learning-bg/item/scItem/enrolmentList?_t=&column=createTime&order=desc&field=id,,action&pageNo={str(page_num)}&pageSize=10"
+            url = f"https://young.ustc.edu.cn/login/wisdom-group-learning-bg/item/scItem/enrolmentList?_t=&column=createTime&order=desc&field=id,,action&pageNo={page_num}&pageSize=10"
             page_num = page_num + 1
             con = json.loads(requests.get(url, headers=self.log_header).text)["result"]
             total_num = int(con["total"])
@@ -168,6 +171,7 @@ class Young:
                             series="系列项目",
                             status=children_item["itemStatus_dictText"],
                             series_name=item["itemName"],
+                            registered=item["booleanRegistration"]
                         )
                         children_res.append(children_info.to_dict())
 
@@ -188,6 +192,7 @@ class Young:
                                 series="系列项目",
                                 status=value[10],
                                 series_name=value[11],
+                                registered=value[12]
                             )
                             res.append(item_info.to_dict())
                 else:
@@ -202,6 +207,7 @@ class Young:
                         total=item["peopleNum"],
                         type=item["form_dictText"],
                         series="单次项目",
+                        registered=item["booleanRegistration"]
                     )
                     res.append(item_info.to_dict())
 
@@ -210,8 +216,13 @@ class Young:
 
         ret = ""
         for key, value in module_df:
-            ret += f"{value.values[0][2]}:\n"
+            flag = True
             for item in value.values:
+                if hide_entered and item[12]:
+                    continue
+                if flag:
+                    ret += f"{item[2]}:\n"
+                    flag = False
                 ret += f'  {item[0]} {item[8]} 学时 {item[3]}\n    申请人数: {item[6]}/{item[7]}\n    报名截止: {item[1]}\n    活动开始: {item[4]}\n    活动结束: {item[5]}\n'
                 if item[9] == "系列项目":
                     ret += f"    系列活动名: {item[11]}\n"
