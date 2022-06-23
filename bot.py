@@ -1,6 +1,6 @@
 from aiocqhttp import CQHttp, Event, Message, MessageSegment
 from time import time, strftime
-from random import randrange, random
+from random import randrange, random, choice
 from urllib.parse import quote
 from inspect import currentframe, getframeinfo
 from os import remove, listdir
@@ -31,7 +31,7 @@ def get_mentioned(msg: Message) -> set:
 
 
 def load_config():
-    global full_config
+    global full_config, mental_templates
     full_config = {}
     with open("./config_base.json") as f:
         full_config["base"] = load(f)
@@ -43,6 +43,8 @@ def load_config():
             full_config[int(group_config[:-5])] = load(f)
     with open("./config_override.json") as f:
         full_config["override"] = load(f)
+    with open('./data/mental.txt', encoding='utf-8') as f:
+        mental_templates = f.readlines()
 
 
 def get_config(func_name: str = "", group_id: int = 0) -> dict:
@@ -368,6 +370,25 @@ async def turntable(event: Event, msg: Message):
         await bot.send(event, config["prompt_safe"].format(nickname))
 
 
+async def mental(event: Event, msg: Message):
+    '''发癫。
+
+    /犯病(💈) - 对发送者发癫。
+    /犯病(💈) txt/at - 对指定对象发癫。'''
+    cmds = msg_to_txt(msg).split()[1:]
+    mentioned = get_mentioned(msg)
+    qq = 0
+    if mentioned:
+        qq = mentioned.pop()
+    elif cmds:
+        name = cmds[0]
+    else:
+        qq = event.sender["user_id"]
+    if qq: name = (await bot.get_group_member_info(group_id=event.group_id, user_id=qq))["nickname"]
+    template = choice(mental_templates)
+    await bot.send(event, template.format(name))
+
+
 async def help(event: Event, msg: Message):
     """显示帮助信息。
 
@@ -582,6 +603,8 @@ group_commands = {
     "/news": news,
     "/notice": notice,
     "/毛子转盘": turntable,
+    "/犯病": mental,
+    "/💈": mental
 }
 admin_group_commands = {
     "/ban": ban,
@@ -596,6 +619,8 @@ su_group_commands = {
     # "/config": config_group,
 }
 
+with open('./data/mental.txt', encoding='utf-8') as f:
+    mental_templates = f.readlines()
 
 @bot.on_message("private")
 async def handle_dm(event: Event):
