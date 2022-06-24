@@ -1,4 +1,5 @@
 from aiocqhttp import CQHttp, Event, Message, MessageSegment
+from aiocqhttp import exceptions
 from time import time, strftime
 from random import randrange, random, choice
 from urllib.parse import quote
@@ -187,6 +188,7 @@ async def ban(event: Event, msg: Message):
     /ban *@someone <duration> - 禁言提及的人员 <duration>s 。
     a. 可指定多位成员，@全体成员则全体禁言。
     b. <duration> 未指定则为 60 ，指定为 0 则取消禁言。
+    <reply> /ban <duration> - 禁言被回复消息的发送者，暂未支持匿名。
     """
     qqs = set()
     duration = 60
@@ -198,6 +200,12 @@ async def ban(event: Event, msg: Message):
                 duration = int(seg["data"]["text"].strip())
             except:
                 pass
+        elif seg["type"] == "reply":
+            id_ = int(seg["data"]["id"])
+            replied = await bot.get_msg(message_id=id_)
+            qq = replied['sender']['user_id']
+            if qq != 80000000:
+                qqs.add(qq)
     role = await bot.get_group_member_info(
         group_id=event.group_id, user_id=event.self_id
     )
@@ -208,7 +216,10 @@ async def ban(event: Event, msg: Message):
         await bot.set_group_whole_ban(group_id=event.group_id, enable=bool(duration))
         return
     for qq in qqs:
-        await bot.set_group_ban(group_id=event.group_id, user_id=qq, duration=duration)
+        try:
+            await bot.set_group_ban(group_id=event.group_id, user_id=qq, duration=duration)
+        except exceptions.ActionFailed:
+            pass
 
 
 async def query(event: Event, msg: Message):
