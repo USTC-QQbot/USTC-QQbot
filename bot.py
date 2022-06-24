@@ -384,9 +384,13 @@ async def mental(event: Event, msg: Message):
         name = cmds[0]
     else:
         qq = event.sender["user_id"]
-    if qq: name = (await bot.get_group_member_info(group_id=event.group_id, user_id=qq))["nickname"]
+    if qq:
+        if qq != 80000000:
+            name = (await bot.get_group_member_info(group_id=event.group_id, user_id=qq))["nickname"]
+        else:
+            name = event.anonymous['name']
     template = choice(mental_templates)
-    await bot.send(event, template.format(name))
+    await bot.send(event, template.format(name).strip())
 
 
 async def help(event: Event, msg: Message):
