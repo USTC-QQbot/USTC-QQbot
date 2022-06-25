@@ -401,7 +401,7 @@ async def mental(event: Event, msg: Message):
         if qq != 80000000:
             name = (
                 await bot.get_group_member_info(group_id=event.group_id, user_id=qq)
-            )["nickname"]
+            )["card"]
         else:
             name = event.anonymous["name"]
     template = choice(mental_templates)
