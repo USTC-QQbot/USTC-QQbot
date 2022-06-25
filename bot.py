@@ -424,6 +424,13 @@ async def help(event: Event, msg: Message):
             commands.update(admin_group_commands)
         if is_su:
             commands.update(su_group_commands)
+        else:
+            disabled = set()
+            for index, command_ in commands.items():
+                if not get_config(command_.__name__).get("enabled", True):
+                    disabled.add(index)
+            for index in disabled:
+                commands.pop(index)
     elif event.detail_type == "private":
         commands = dict(private_commands)
         if is_su:
@@ -538,11 +545,11 @@ async def config_group(event: Event, msg: Message):
         await bot.send(event, str(config.get(cmds[1])))
     elif len(cmds) == 3:
         option, value = cmds[1:]
+        if value.isdigit():
+            value = int(value)
         trans = {"true": True, "false": False}
         if value.lower() in trans:
             value = trans[value.lower()]
-        if value.isdigit():
-            value = int(value)
         set_config(option, value, func_name=cmds[0])
         await bot.send(event, "操作成功。")
 
@@ -675,7 +682,7 @@ async def handle_msg(event: Event):
         for k, v in group_commands.items():
             if cmd.startswith(k + " ") or cmd == k:
                 config = get_config(v.__name__)
-                if config.get("enabled", True):
+                if config.get("enabled", True) or is_su:
                     await v(event, msg)
                 return
         if not is_admin:
