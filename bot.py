@@ -44,7 +44,7 @@ def load_config():
             full_config[int(group_config[:-5])] = load(f)
     with open("./config_override.json") as f:
         full_config["override"] = load(f)
-    with open('./data/mental.txt', encoding='utf-8') as f:
+    with open("./data/mental.txt", encoding="utf-8") as f:
         mental_templates = f.readlines()
 
 
@@ -203,7 +203,7 @@ async def ban(event: Event, msg: Message):
         elif seg["type"] == "reply":
             id_ = int(seg["data"]["id"])
             replied = await bot.get_msg(message_id=id_)
-            qq = replied['sender']['user_id']
+            qq = replied["sender"]["user_id"]
             if qq != 80000000:
                 qqs.add(qq)
     role = await bot.get_group_member_info(
@@ -217,7 +217,9 @@ async def ban(event: Event, msg: Message):
         return
     for qq in qqs:
         try:
-            await bot.set_group_ban(group_id=event.group_id, user_id=qq, duration=duration)
+            await bot.set_group_ban(
+                group_id=event.group_id, user_id=qq, duration=duration
+            )
         except exceptions.ActionFailed:
             pass
 
@@ -324,7 +326,7 @@ async def young(event: Event, msg: Message):
     """
     cmds = msg_to_txt(msg).split()
     show_all = False
-    if len(cmds) == 2 and cmds[1] == 'all':
+    if len(cmds) == 2 and cmds[1] == "all":
         show_all = True
     elif len(cmds) != 1:
         await bot.send(event, "参数错误！")
@@ -382,10 +384,10 @@ async def turntable(event: Event, msg: Message):
 
 
 async def mental(event: Event, msg: Message):
-    '''发癫。
+    """发癫。
 
     /犯病(💈) - 对发送者发癫。
-    /犯病(💈) txt/at - 对指定对象发癫。'''
+    /犯病(💈) txt/at - 对指定对象发癫。"""
     cmds = msg_to_txt(msg).split()[1:]
     mentioned = get_mentioned(msg)
     qq = 0
@@ -397,9 +399,11 @@ async def mental(event: Event, msg: Message):
         qq = event.sender["user_id"]
     if qq:
         if qq != 80000000:
-            name = (await bot.get_group_member_info(group_id=event.group_id, user_id=qq))["nickname"]
+            name = (
+                await bot.get_group_member_info(group_id=event.group_id, user_id=qq)
+            )["nickname"]
         else:
-            name = event.anonymous['name']
+            name = event.anonymous["name"]
     template = choice(mental_templates)
     await bot.send(event, template.format(name).strip())
 
@@ -619,7 +623,7 @@ group_commands = {
     "/notice": notice,
     "/毛子转盘": turntable,
     "/犯病": mental,
-    "/💈": mental
+    "/💈": mental,
 }
 admin_group_commands = {
     "/ban": ban,
@@ -634,8 +638,9 @@ su_group_commands = {
     # "/config": config_group,
 }
 
-with open('./data/mental.txt', encoding='utf-8') as f:
+with open("./data/mental.txt", encoding="utf-8") as f:
     mental_templates = f.readlines()
+
 
 @bot.on_message("private")
 async def handle_dm(event: Event):
@@ -719,6 +724,26 @@ async def handle_group(event: Event):
             return
     else:
         print(f"Unexpected type: {event.sub_type}")
+
+
+@bot.on_notice("notify")
+async def handle_notice(event: Event):
+    type_ = event.sub_type
+    config = get_config("notify")
+    if config["enabled"]:
+        cf = config.get(type_)
+        if cf and cf["enabled"]:
+            qq = event.user_id if type_ != "lucky_king" else event.target_id
+            if qq == event.self_id: return
+            if type_ == "honor" and event.honor_type != "talkative":
+                print(event.honor_type)  # DEBUG
+                return
+            reply = Message()
+            msg = choice(cf["replies"]).split("@")
+            if msg[0]: reply.append(MessageSegment.text(msg[0]))
+            reply.append(MessageSegment.at(user_id=qq))
+            if msg[1]: reply.append(MessageSegment.text(msg[1]))
+            await bot.send(event, reply)
 
 
 bot.run(host="127.0.0.1", port=PORT)

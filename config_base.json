@@ -23,5 +23,23 @@
         "prompt_ban": "砰！一声枪响之后，{0}被禁言了{1}s！",
         "prompt_safe": "{}无事发生",
         "reject": "你是不是玩不起？"
+    },
+    "notify": {
+        "enabled": true,
+        "lucky_king": {
+            "enabled": true,
+            "replies": [
+                "运气王爆照 ~ @",
+                "@运气王唱歌跳舞讲故事！",
+                "运气王爆照爆字唱歌跳舞讲故事发红包！@"
+            ]
+        },
+        "honor": {
+            "enabled": true,
+            "replies": [
+                "恭迎龙王@！",
+                "@龙王喷水！"
+            ]
+        }
     }
 }
