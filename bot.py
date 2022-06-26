@@ -167,6 +167,7 @@ async def roll(event, msg: Message):
 
     /roll - 生成配置文件中指定范围 (默认 1 ~ 6) 的随机数。
     /roll <start> <end> - 生成 [<start>, <end>] 的随机数。
+    /roll *args - 在 args 里随机选择一个。
     """
     cmds = msg_to_txt(msg).split()
     if len(cmds) == 1:
@@ -177,8 +178,7 @@ async def roll(event, msg: Message):
         start, end = int(cmds[1]), (int(cmds[2]) + 1)
         result = randrange(start, end)
     except:
-        await bot.send(event, "参数错误！")
-    else:
+        result = choice(cmds[1:])
         await bot.send(event, f"你摇到了 {result} ！")
 
 
