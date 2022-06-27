@@ -174,12 +174,15 @@ async def roll(event, msg: Message):
         config = get_config()
         await bot.send(event, f"你摇到了 {randrange(config['start'], config['end'] + 1)} ！")
         return
-    try:
-        start, end = int(cmds[1]), (int(cmds[2]) + 1)
-        result = randrange(start, end)
-    except:
+    elif len(cmds) == 3:
+        try:
+            start, end = int(cmds[1]), (int(cmds[2]) + 1)
+            result = randrange(start, end)
+        except:
+            result = choice()
+    else:
         result = choice(cmds[1:])
-        await bot.send(event, f"你摇到了 {result} ！")
+    await bot.send(event, f"你摇到了 {result} ！")
 
 
 async def ban(event: Event, msg: Message):
