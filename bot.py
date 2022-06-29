@@ -606,7 +606,7 @@ CQ_PATH: str = full_config["override"].get("CQ-PATH")
 bot = CQHttp()
 enabled = True
 rcParams["text.usetex"] = True
-rcParams["text.latex.preamble"] = r"\usepackage{amsmath}"
+rcParams["text.latex.preamble"] = "\\usepackage{amsmath}\n\\usepackage{mathabx}"
 
 private_commands = {
     "/roll": roll,
