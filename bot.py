@@ -682,19 +682,16 @@ async def handle_dm(event: Event):
     is_su = event.sender.get("user_id", 0) == SUPER_USER
     if enabled or is_su:
         msg: Message = event.message
-        cmd = msg_to_txt(msg)
-        if not cmd:
+        cmd, left = msg_split(msg)
+        if not (cmd and cmd.startswith('/')):
             return
-        for k, v in private_commands.items():
-            if cmd.startswith(k + " ") or cmd == k:
-                await v(event, msg)
-                return
-        if not is_su:
-            return
-        for k, v in su_private_commands.items():
-            if cmd.startswith(k + " ") or cmd == k:
-                await v(event, msg)
-                return
+        v = private_commands.get(cmd)
+        if (not v) and is_su:
+            v = su_private_commands.get(cmd)
+        if v:
+            config = get_config(v.__name__)
+            if config.get("enabled", True) or is_su:
+                await v(event, left)
 
 
 @bot.on_message("group")
@@ -704,28 +701,18 @@ async def handle_msg(event: Event):
     is_admin = is_su or (event.sender.get("user_id", 0) in admins)
     if enabled or is_su:
         msg: Message = event.message
-        cmd = msg_to_txt(msg)
-        if not cmd:
+        cmd, left = msg_split(msg)
+        if not (cmd and cmd.startswith('/')):
             return
-        for k, v in group_commands.items():
-            if cmd.startswith(k + " ") or cmd == k:
-                config = get_config(v.__name__)
-                if config.get("enabled", True) or is_su:
-                    await v(event, msg)
-                return
-        if not is_admin:
-            return
-        for k, v in admin_group_commands.items():
-            if cmd.startswith(k + " ") or cmd == k:
-                await v(event, msg)
-                return
-        if not is_su:
-            return
-        for k, v in su_group_commands.items():
-            if cmd.startswith(k + " ") or cmd == k:
-                await v(event, msg)
-                return
-
+        v = group_commands.get(cmd)
+        if (not v) and is_admin:
+            v = admin_group_commands.get(cmd)
+        if (not v) and is_su:
+            v = su_group_commands.get(cmd)
+        if v:
+            config = get_config(v.__name__)
+            if config.get("enabled", True) or is_su:
+                await v(event, left)
 
 @bot.on_request("group")
 async def handle_group(event: Event):
