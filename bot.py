@@ -204,6 +204,11 @@ async def roll(event, msg: Message):
     await bot.send(event, f"你摇到了 {result} ！")
 
 
+async def echo(event, msg: Message):
+    '''重复你说的话。'''
+    await bot.send(event, msg)
+
+
 async def ban(event: Event, msg: Message):
     """禁言指定用户。
 
@@ -637,6 +642,7 @@ private_commands = {
     "/notice": notice,
     "/cred": credential,
     "/young": young,
+    "/echo": echo,
 }
 group_commands = {
     "/roll": roll,
@@ -652,6 +658,7 @@ group_commands = {
     "/毛子转盘": turntable,
     "/犯病": mental,
     "/💈": mental,
+    "/echo": echo,
 }
 admin_group_commands = {
     "/ban": ban,
