@@ -23,6 +23,25 @@ def msg_to_txt(msg: Message) -> str:
     return res.strip()
 
 
+def msg_split(msg: Message):
+    cmd = ''
+    empty = []
+    for i, seg in enumerate(msg):
+        if seg["type"] == "text":
+            cmd: str = seg["data"]["text"].strip()
+            if cmd:
+                cmd = cmd.partition(' ')
+                if cmd[2]:
+                    seg["data"]["text"] = cmd[2].lstrip()
+                else:
+                    empty.append(i)
+                cmd = cmd[0]
+                break
+    for i in range(len(empty)):
+        del msg[empty.pop()]
+    return cmd, msg
+
+
 def get_mentioned(msg: Message) -> set:
     mentioned = set()
     for seg in msg:
@@ -170,18 +189,18 @@ async def roll(event, msg: Message):
     /roll *args - 在 args 里随机选择一个。
     """
     cmds = msg_to_txt(msg).split()
-    if len(cmds) == 1:
+    if len(cmds) == 0:
         config = get_config()
         await bot.send(event, f"你摇到了 {randrange(config['start'], config['end'] + 1)} ！")
         return
-    elif len(cmds) == 3:
+    elif len(cmds) == 2:
         try:
-            start, end = int(cmds[1]), (int(cmds[2]) + 1)
+            start, end = int(cmds[0]), (int(cmds[1]) + 1)
             result = randrange(start, end)
         except:
             result = choice()
     else:
-        result = choice(cmds[1:])
+        result = choice(cmds)
     await bot.send(event, f"你摇到了 {result} ！")
 
 
@@ -232,17 +251,17 @@ async def query(event: Event, msg: Message):
     config = get_config()
     cmd = msg_to_txt(msg)
     cmds = cmd.split()
-    if len(cmds) == 1:
+    if len(cmds) == 0:
         await bot.send(event, config["insufficient"])
         return
-    teacher = cmds[1]
+    teacher = cmds[0]
     url = config["engine"].format(quote(teacher))
     await bot.send(event, config["format"].format(teacher, url))
 
 
 async def latex(event: Event, msg: Message):
     """渲染 Latex 公式: /latex <formula> 。"""
-    formula = msg_to_txt(msg).removeprefix("/latex").strip()
+    formula = msg_to_txt(msg).strip()
     if not formula:
         return
     formula_ = f"${formula}$"
@@ -310,7 +329,7 @@ async def news(event: Event, msg: Message):
     /news - 获取 10 条科大要闻。
     /news <i> - 查看第 <i> 条的摘要与链接。
     """
-    arg = msg_to_txt(msg).removeprefix("/news").strip()
+    arg = msg_to_txt(msg).strip()
     if not arg:
         await bot.send(event, request_rss(0))
     elif arg.isdigit():
@@ -329,9 +348,9 @@ async def young(event: Event, msg: Message):
     """
     cmds = msg_to_txt(msg).split()
     show_all = False
-    if len(cmds) == 2 and cmds[1] == "all":
+    if len(cmds) == 1 and cmds[0] == "all":
         show_all = True
-    elif len(cmds) != 1:
+    elif len(cmds) != 0:
         await bot.send(event, "参数错误！")
         return
     sender = event.sender.get("user_id", 0)
@@ -358,7 +377,7 @@ async def notice(event: Event, msg: Message):
     /notice - 获取 10 条通知公告。
     /notice <i> - 查看第 <i> 条的摘要与链接。
     """
-    arg = msg_to_txt(msg).removeprefix("/notice").strip()
+    arg = msg_to_txt(msg).strip()
     if not arg:
         await bot.send(event, request_rss(1))
     elif arg.isdigit():
@@ -391,13 +410,13 @@ async def mental(event: Event, msg: Message):
 
     /犯病(💈) - 对发送者发癫。
     /犯病(💈) txt/at - 对指定对象发癫。"""
-    cmds = msg_to_txt(msg).split()[1:]
+    arg = msg_to_txt(msg).strip()
     mentioned = get_mentioned(msg)
     qq = 0
     if mentioned:
         qq = mentioned.pop()
-    elif cmds:
-        name = cmds[0]
+    elif arg:
+        name = arg
     else:
         qq = event.sender["user_id"]
     if qq:
@@ -416,7 +435,7 @@ async def help(event: Event, msg: Message):
     /help - 列出可用指令。
     /help <func> - 展示 <func> 的帮助信息。
     """
-    command = "/" + msg_to_txt(msg).removeprefix("/help").strip().removeprefix("/")
+    command = "/" + msg_to_txt(msg).strip().removeprefix("/")
     admins = get_config("admin").get("list", [])
     is_su = event.sender.get("user_id", 0) == SUPER_USER
     is_admin = is_su or (event.sender.get("user_id", 0) in admins)
@@ -459,7 +478,7 @@ async def admin(event: Event, msg: Message):
     /admin rm/del/remove *@someone - 把提及的人移出机器人管理员。
     /admin clear - 移除所有机器人管理员。
     """
-    cmds = msg_to_txt(msg).split()[1:]
+    cmds = msg_to_txt(msg).split()
     admins: list = get_config().get("list", [])
     mentioned = get_mentioned(msg)
     if not cmds:
@@ -515,7 +534,7 @@ async def config_group(event: Event, msg: Message):
     /config unset <func> <option> - 重置 <option> 的值。
     /config reload - 重新加载配置。
     """
-    cmds = msg_to_txt(msg).split()[1:]
+    cmds = msg_to_txt(msg).split()
     if not cmds:
         return
     if cmds[0] == "unset":
@@ -570,7 +589,7 @@ async def credential(event: Event, msg: Message):
         return
     path = f"./credential/{sender}.json"
     cred = get_cred(sender)
-    cmds = msg_to_txt(msg).split()[1:]
+    cmds = msg_to_txt(msg).split()
     if not cmds:
         await bot.send(event, dumps(cred, indent=4, ensure_ascii=False))
         return
