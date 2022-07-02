@@ -206,7 +206,8 @@ async def roll(event, msg: Message):
 
 async def echo(event, msg: Message):
     '''重复你说的话。'''
-    await bot.send(event, msg)
+    if len(msg):
+        await bot.send(event, msg)
 
 
 async def ban(event: Event, msg: Message):
