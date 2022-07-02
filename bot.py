@@ -758,7 +758,6 @@ async def handle_notice(event: Event):
             qq = event.user_id if type_ != "lucky_king" else event.target_id
             if qq == event.self_id: return
             if type_ == "honor" and event.honor_type != "talkative":
-                print(event.honor_type)  # DEBUG
                 return
             reply = Message()
             msg = choice(cf["replies"]).split("@")
