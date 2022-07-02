@@ -5,3 +5,4 @@ requests_toolbelt
 beautifulsoup4
 feedparser
 pandas
+Pillow
