@@ -1,0 +1,7 @@
+aiocqhttp
+matplotlib
+requests
+requests_toolbelt
+beautifulsoup4
+feedparser
+pandas
