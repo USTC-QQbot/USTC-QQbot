@@ -15,6 +15,7 @@ from ustc_auth import valid
 from ustc_news import request_rss
 from ustc_young import Young
 from ustc_covid import Covid
+from qrcode import make
 
 
 def msg_to_txt(msg: Message) -> str:
@@ -329,6 +330,41 @@ async def wtf(event: Event, msg: Message):
         event,
         "RTFM/STFW 是什么意思？\n  [简中]USTC LUG: https://lug.ustc.edu.cn/wiki/doc/smart-questions/#%E5%A6%82%E4%BD%95%E8%A7%A3%E8%AF%BB%E7%AD%94%E6%A1%88\n  [繁/简]Github: https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way#rtfm%E5%92%8Cstfw%E5%A6%82%E4%BD%95%E7%9F%A5%E9%81%93%E4%BD%A0%E5%B7%B2%E5%AE%8C%E5%85%A8%E6%90%9E%E7%A0%B8%E4%BA%86\n  [英语]原文: http://www.catb.org/~esr/faqs/smart-questions.html#rtfm",
     )
+
+
+async def isbn(event: Event, msg: Message):
+    '''根据提供的 ISBN 号查询书籍信息。'''
+    serial = msg_to_txt(msg).partition(' ')[0]
+    if not serial:
+        await bot.send(event, "未提供 ISBN ！")
+        return
+    config = get_config()
+    key = config.get('apikey')
+    if not key:
+        await bot.send(event, "未配置 apikey ！·")
+        return
+    r = get(f'https://api.jike.xyz/situ/book/isbn/{serial}', params={'apikey': key})
+    if 'isbn 错误!' in r.text:
+        await bot.send(event, "ISBN 错误！")
+        return
+    data = r.json()
+    if data['msg'] == '请求成功':
+        data = data['data']
+        msg_ = f'{data["name"]}\n作者：{data["author"]}\n出版社：{data["publishing"]}\n出版时间：{data["published"]}\n页数：{data["pages"]}\n价格：{data["price"]}\n简介：{data["description"]}'
+        await bot.send(event, msg_)
+    else:
+        await bot.send(event, data['msg'])
+
+
+async def qrcode(event: Event, msg: Message):
+    '''制作二维码。'''
+    data = msg_to_txt(msg)
+    qr = make(data)
+    fname = f"qrcode_{int(time())}.png"
+    path = CQ_PATH + "/data/images/" + fname
+    qr.save(path)
+    await bot.send(event, Message(MessageSegment.image(fname)))
+    remove(path)
 
 
 async def news(event: Event, msg: Message):
@@ -742,6 +778,8 @@ private_commands = {
     "/young": young,
     "/echo": echo,
     "/covid": covid,
+    "/isbn": isbn,
+    "/qr": qrcode,
 }
 group_commands = {
     "/roll": roll,
@@ -758,6 +796,8 @@ group_commands = {
     "/犯病": mental,
     "/💈": mental,
     "/echo": echo,
+    "/isbn": isbn,
+    "/qr": qrcode,
 }
 admin_group_commands = {
     "/ban": ban,
