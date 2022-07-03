@@ -1,21 +1,23 @@
-from aiocqhttp import CQHttp, Event, Message, MessageSegment
-from aiocqhttp import exceptions
-from time import time, strftime
-from random import randrange, random, choice
-from urllib.parse import quote
 from inspect import currentframe, getframeinfo
-from os import remove, listdir
+from json import dump, dumps, load
+from os import listdir, remove
 from os.path import isfile
-from json import load, dump, dumps
-import matplotlib.pyplot as plt
-from matplotlib import rcParams
+from random import choice, random, randrange
 from re import search
+from time import strftime, time
+from urllib.parse import quote
+
+import matplotlib.pyplot as plt
+from aiocqhttp import CQHttp, Event, Message, MessageSegment, exceptions
+from matplotlib import rcParams
+from qrcode import make
 from requests import get
+
+from meme_recog import recognize
 from ustc_auth import valid
+from ustc_covid import Covid
 from ustc_news import request_rss
 from ustc_young import Young
-from ustc_covid import Covid
-from qrcode import make
 
 
 def msg_to_txt(msg: Message) -> str:
@@ -544,6 +546,32 @@ async def turntable(event: Event, msg: Message):
         await bot.send(event, config["prompt_safe"].format(nickname))
 
 
+async def meme(event: Event, msg: Message):
+    '''判断回复的图片是猫猫虫还是蜜桃猫。'''
+    if len(msg):
+        reply_seg = msg[0]
+    else:
+        await bot.send(event, "您未回复图片！")
+        return
+    if reply_seg['type'] == 'reply':
+        try:
+            replied = (await bot.get_msg(message_id=int(reply_seg['data']['id'])))['message'][0]
+        except Exception as e:
+            print(e)  # DEBUG
+            await bot.send(event, "未能定位消息，请尝试使用手机QQ操作！")
+            return
+        url = replied['data']['url']
+    else:
+        await bot.send(event, "您未回复图片！")
+        return
+    result = recognize(url, True)
+    if result <= 1:
+        reply = "是蜜桃猫 PeachCat ！" if result else "是猫猫虫 Capoo ！"
+    else:
+        reply = "未知错误！"
+    await bot.send(event, reply)
+    
+
 async def mental(event: Event, msg: Message):
     """发癫。
 
@@ -780,6 +808,7 @@ private_commands = {
     "/covid": covid,
     "/isbn": isbn,
     "/qr": qrcode,
+    "/meme": meme,
 }
 group_commands = {
     "/roll": roll,
@@ -798,6 +827,7 @@ group_commands = {
     "/echo": echo,
     "/isbn": isbn,
     "/qr": qrcode,
+    "/meme": meme,
 }
 admin_group_commands = {
     "/ban": ban,
