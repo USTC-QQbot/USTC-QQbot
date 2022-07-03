@@ -13,7 +13,7 @@ from matplotlib import rcParams
 from qrcode import make
 from requests import get
 
-from meme_recog import recognize
+from meme_recog import is_Capoo
 from ustc_auth import valid
 from ustc_covid import Covid
 from ustc_news import request_rss
@@ -547,7 +547,7 @@ async def turntable(event: Event, msg: Message):
 
 
 async def meme(event: Event, msg: Message):
-    '''判断回复的图片是猫猫虫还是蜜桃猫。'''
+    '''判断回复的图片是不是猫猫虫。'''
     if len(msg):
         reply_seg = msg[0]
     else:
@@ -564,12 +564,16 @@ async def meme(event: Event, msg: Message):
     else:
         await bot.send(event, "您未回复图片！")
         return
-    result = recognize(url, True)
-    if result <= 1:
-        reply = "是蜜桃猫 PeachCat ！" if result else "是猫猫虫 Capoo ！"
+    result = is_Capoo(url, True)
+    if result == 0:
+        await bot.send(event, "是猫猫虫！")
+        await bot.send(event, Message(MessageSegment.image('yes.gif')))
+    elif result == 1:
+        await bot.send(event, "不是猫猫虫。")
+        await bot.send(event, Message(MessageSegment.image('no.gif')))
     else:
-        reply = "未知错误！"
-    await bot.send(event, reply)
+        await bot.send(event, "未知错误！")
+        await bot.send(event, Message(MessageSegment.image('error.gif')))
     
 
 async def mental(event: Event, msg: Message):

@@ -36,9 +36,9 @@ model.compile(
 checkpoint.restore(tf.train.latest_checkpoint(model_save_dir))
 
 
-def recognize(pic_path, from_url=False):
+def is_Capoo(pic_path, from_url=False):
     """
-    输入蜜桃猫或者猫猫虫的图片，判断是两者中的哪种小动物
+    输入图片，判断是否为猫猫虫
 
     （图片支持png/jpeg/gif/bmp/webp格式）
 
@@ -68,8 +68,7 @@ def recognize(pic_path, from_url=False):
     final = tf.expand_dims(img_resized, 0)  # 将三维张量调整为CNN输入需要的[None,64,64,3]的格式
 
     result = model.predict(final)
-    # 返回[[0.]]说明是猫猫虫，返回[[1.]]说明是蜜桃猫，只能做二分类
-    # 如果输入无关的图像则结果不具有参考价值
+    # 返回[[0.]]说明是猫猫虫，返回[[1.]]说明不是，只能做二分类
 
     if result[0][0] == 0:
         return 0
@@ -79,5 +78,5 @@ def recognize(pic_path, from_url=False):
         return 2
 
 if __name__ == '__main__':
-    print(['Capoo', 'Peach Cat', 'Error!'][recognize('https://img.stickers.cloud/packs/7a2b50a5-057e-4f9d-8a10-9e69df509c0a/png/ad6f15c9-9f49-4af3-a742-7364dfc3283f.png', True)])
+    print(['Is Capoo', 'Not Capoo', 'Error!'][is_Capoo('https://img.stickers.cloud/packs/7a2b50a5-057e-4f9d-8a10-9e69df509c0a/png/ad6f15c9-9f49-4af3-a742-7364dfc3283f.png', True)])
 
