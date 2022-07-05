@@ -24,6 +24,9 @@
         "prompt_safe": "{}无事发生",
         "reject": "你是不是玩不起？"
     },
+    "bracket": {
+        "enabled": true
+    },
     "notify": {
         "enabled": true,
         "lucky_king": {

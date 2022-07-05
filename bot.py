@@ -29,13 +29,13 @@ def msg_to_txt(msg: Message) -> str:
 
 
 def msg_split(msg: Message):
-    cmd = ''
+    cmd = ""
     empty = []
     for i, seg in enumerate(msg):
         if seg["type"] == "text":
             cmd: str = seg["data"]["text"].strip()
             if cmd:
-                cmd = cmd.partition(' ')
+                cmd = cmd.partition(" ")
                 if cmd[2]:
                     seg["data"]["text"] = cmd[2].lstrip()
                 else:
@@ -210,7 +210,7 @@ async def roll(event, msg: Message):
 
 
 async def echo(event, msg: Message):
-    '''重复你说的话。'''
+    """重复你说的话。"""
     if len(msg):
         await bot.send(event, msg)
 
@@ -335,31 +335,31 @@ async def wtf(event: Event, msg: Message):
 
 
 async def isbn(event: Event, msg: Message):
-    '''根据提供的 ISBN 号查询书籍信息。'''
-    serial = msg_to_txt(msg).partition(' ')[0]
+    """根据提供的 ISBN 号查询书籍信息。"""
+    serial = msg_to_txt(msg).partition(" ")[0]
     if not serial:
         await bot.send(event, "未提供 ISBN ！")
         return
     config = get_config()
-    key = config.get('apikey')
+    key = config.get("apikey")
     if not key:
         await bot.send(event, "未配置 apikey ！·")
         return
-    r = get(f'https://api.jike.xyz/situ/book/isbn/{serial}', params={'apikey': key})
-    if 'isbn 错误!' in r.text:
+    r = get(f"https://api.jike.xyz/situ/book/isbn/{serial}", params={"apikey": key})
+    if "isbn 错误!" in r.text:
         await bot.send(event, "ISBN 错误！")
         return
     data = r.json()
-    if data['msg'] == '请求成功':
-        data = data['data']
+    if data["msg"] == "请求成功":
+        data = data["data"]
         msg_ = f'{data["name"]}\n作者：{data["author"]}\n出版社：{data["publishing"]}\n出版时间：{data["published"]}\n页数：{data["pages"]}\n价格：{data["price"]}\n简介：{data["description"]}'
         await bot.send(event, msg_)
     else:
-        await bot.send(event, data['msg'])
+        await bot.send(event, data["msg"])
 
 
 async def qrcode(event: Event, msg: Message):
-    '''制作二维码。'''
+    """制作二维码。"""
     data = msg_to_txt(msg)
     qr = make(data)
     fname = f"qrcode_{int(time())}.png"
@@ -418,7 +418,7 @@ async def young(event: Event, msg: Message):
 
 
 async def covid(event: Event, msg: Message):
-    '''健康打卡相关操作。
+    """健康打卡相关操作。
 
     <回复图片> + /covid - 打卡、上传行程卡并报备（目前仅支持本科生）。
     <回复图片> + /covid trip - 上传行程卡。
@@ -428,21 +428,21 @@ async def covid(event: Event, msg: Message):
     /covid claim - 报备（仅支持“前往东西南北中校区”）。
     * 除了账号密码，需额外配置 cred 的 "covid_dest" 项目为目的地，"covid_reason" 为进出校原因。
     * 示例： /cred covid_dest 东西中, /cred covid_reason 上课/自习
-    '''
+    """
     cred = get_cred(event.sender.get("user_id"))
     for v in "username", "password", "covid_dest", "covid_reason":
         if not v in cred:
             await bot.send(event, f'您未配置 "{v}"!')
             return
     cmds = msg_to_txt(msg).split()
-    all_ = {'trip', 'report', 'status', 'checkin', 'claim'}
+    all_ = {"trip", "report", "status", "checkin", "claim"}
     if len(cmds) == 0:
-        ops = ['checkin', 'trip', 'claim']
+        ops = ["checkin", "trip", "claim"]
         upload_pic = True
     elif len(cmds) == 1:
         if cmds[0] in all_:
             ops = [cmds[0]]
-            upload_pic = cmds[0] in {'trip', 'report'}
+            upload_pic = cmds[0] in {"trip", "report"}
         else:
             await bot.send(event, "无效参数！")
             return
@@ -455,14 +455,16 @@ async def covid(event: Event, msg: Message):
         else:
             await bot.send(event, "您未回复图片！")
             return
-        if reply_seg['type'] == 'reply':
+        if reply_seg["type"] == "reply":
             try:
-                replied = (await bot.get_msg(message_id=int(reply_seg['data']['id'])))['message'][0]
+                replied = (await bot.get_msg(message_id=int(reply_seg["data"]["id"])))[
+                    "message"
+                ][0]
             except Exception as e:
                 print(e)  # DEBUG
                 await bot.send(event, "未能定位消息，请尝试使用手机QQ操作！")
                 return
-            url = replied['data']['url']
+            url = replied["data"]["url"]
             img = get(url).content
             # await bot.send(event, url)
         else:
@@ -476,27 +478,27 @@ async def covid(event: Event, msg: Message):
     else:
         reply.append("登录成功。")
     for op in ops:
-        if op == 'trip':
+        if op == "trip":
             r = cov.upload(img, 1)
             if not r[0]:
                 reply.append("行程卡上传失败：" + r[1])
             else:
                 reply.append("行程卡上传成功！")
-        elif op == 'report':
+        elif op == "report":
             r = cov.upload(img, 3)
             if not r[0]:
                 reply.append("核酸检测报告上传失败：" + r[1])
             else:
                 reply.append("核酸检测报告上传成功！")
-        elif op == 'status':
+        elif op == "status":
             reply.append("当前状态：" + cov.status())
-        elif op == 'checkin':
+        elif op == "checkin":
             r = cov.checkin()
             if not r[0]:
                 reply.append("打卡失败：" + r[1])
             else:
                 reply.append("打卡成功！")
-        elif op == 'claim':
+        elif op == "claim":
             r = cov.claim(cred["covid_dest"], cred["covid_reason"])
             if not r[0]:
                 reply.append("报备失败：" + r[1])
@@ -509,7 +511,7 @@ async def covid(event: Event, msg: Message):
         reply.append("登出失败！")
     else:
         reply.append("登出成功。")
-    await bot.send(event, '\n'.join(reply))
+    await bot.send(event, "\n".join(reply))
 
 
 async def notice(event: Event, msg: Message):
@@ -547,34 +549,36 @@ async def turntable(event: Event, msg: Message):
 
 
 async def meme(event: Event, msg: Message):
-    '''判断回复的图片是不是猫猫虫。'''
+    """判断回复的图片是不是猫猫虫。"""
     if len(msg):
         reply_seg = msg[0]
     else:
         await bot.send(event, "您未回复图片！")
         return
-    if reply_seg['type'] == 'reply':
+    if reply_seg["type"] == "reply":
         try:
-            replied = (await bot.get_msg(message_id=int(reply_seg['data']['id'])))['message'][0]
+            replied = (await bot.get_msg(message_id=int(reply_seg["data"]["id"])))[
+                "message"
+            ][0]
         except Exception as e:
             print(e)  # DEBUG
             await bot.send(event, "未能定位消息，请尝试使用手机QQ操作！")
             return
-        url = replied['data']['url']
+        url = replied["data"]["url"]
     else:
         await bot.send(event, "您未回复图片！")
         return
     result = is_Capoo(url, True)
     if result == 0:
         await bot.send(event, "是猫猫虫！")
-        await bot.send(event, Message(MessageSegment.image('yes.gif')))
+        await bot.send(event, Message(MessageSegment.image("yes.gif")))
     elif result == 1:
         await bot.send(event, "不是猫猫虫。")
-        await bot.send(event, Message(MessageSegment.image('no.gif')))
+        await bot.send(event, Message(MessageSegment.image("no.gif")))
     else:
         await bot.send(event, "未知错误！")
-        await bot.send(event, Message(MessageSegment.image('error.gif')))
-    
+        await bot.send(event, Message(MessageSegment.image("error.gif")))
+
 
 async def mental(event: Event, msg: Message):
     """发癫。
@@ -593,7 +597,7 @@ async def mental(event: Event, msg: Message):
     if qq:
         if qq != 80000000:
             info = await bot.get_group_member_info(group_id=event.group_id, user_id=qq)
-            name = info['card'] if info['card'] else info["nickname"]
+            name = info["card"] if info["card"] else info["nickname"]
         else:
             name = event.anonymous["name"]
     template = choice(mental_templates)
@@ -854,9 +858,9 @@ with open("./data/mental.txt", encoding="utf-8") as f:
 async def handle_dm(event: Event):
     is_su = event.sender.get("user_id", 0) == SUPER_USER
     if enabled or is_su:
-        msg: Message = event.message
+        msg = event.message
         cmd, left = msg_split(msg)
-        if not (cmd and cmd.startswith('/')):
+        if not (cmd and cmd.startswith("/")):
             return
         v = private_commands.get(cmd)
         if (not v) and is_su:
@@ -873,9 +877,15 @@ async def handle_msg(event: Event):
     is_su = event.sender.get("user_id", 0) == SUPER_USER
     is_admin = is_su or (event.sender.get("user_id", 0) in admins)
     if enabled or is_su:
-        msg: Message = event.message
+        msg = event.message
+        if get_config("bracket").get("enabled", True):
+            s = msg_to_txt(msg)
+            l = s.count("(") + s.count("（")
+            r = s.count(")") + s.count("）")
+            if l > r:
+                await bot.send(event, ")" * (l - r))
         cmd, left = msg_split(msg)
-        if not (cmd and cmd.startswith('/')):
+        if not (cmd and cmd.startswith("/")):
             return
         v = group_commands.get(cmd)
         if (not v) and is_admin:
@@ -886,6 +896,7 @@ async def handle_msg(event: Event):
             config = get_config(v.__name__)
             if config.get("enabled", True) or is_su:
                 await v(event, left)
+
 
 @bot.on_request("group")
 async def handle_group(event: Event):
@@ -929,14 +940,17 @@ async def handle_notice(event: Event):
         cf = config.get(type_)
         if cf and cf["enabled"]:
             qq = event.user_id if type_ != "lucky_king" else event.target_id
-            if qq == event.self_id: return
+            if qq == event.self_id:
+                return
             if type_ == "honor" and event.honor_type != "talkative":
                 return
             reply = Message()
             msg = choice(cf["replies"]).split("@")
-            if msg[0]: reply.append(MessageSegment.text(msg[0]))
+            if msg[0]:
+                reply.append(MessageSegment.text(msg[0]))
             reply.append(MessageSegment.at(user_id=qq))
-            if msg[1]: reply.append(MessageSegment.text(msg[1]))
+            if msg[1]:
+                reply.append(MessageSegment.text(msg[1]))
             await bot.send(event, reply)
 
 
