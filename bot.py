@@ -13,6 +13,7 @@ from matplotlib import rcParams
 from qrcode import make
 from requests import get
 
+from make_quotation import make_quotation
 from meme_recog import is_Capoo
 from ustc_auth import valid
 from ustc_covid import Covid
@@ -580,6 +581,36 @@ async def meme(event: Event, msg: Message):
         await bot.send(event, Message(MessageSegment.image("error.gif")))
 
 
+async def quotation(event: Event, msg: Message):
+    '''制作语录。'''
+    if len(msg):
+        reply_seg = msg[0]
+    else:
+        await bot.send(event, "您未回复消息！")
+        return
+    if reply_seg["type"] == "reply":
+        try:
+            replied = (await bot.get_msg(message_id=int(reply_seg["data"]["id"])))
+        except Exception as e:
+            print(e)  # DEBUG
+            await bot.send(event, "未能定位消息，请尝试使用手机QQ操作！")
+            return
+    else:
+        await bot.send(event, "您未回复消息！")
+        return
+    saying = msg_to_txt(replied['message'])
+    sender = replied['sender']['user_id']
+    avatar = get(f'http://q2.qlogo.cn/headimg_dl?dst_uin={sender}&spec=100').content
+    info = await bot.get_group_member_info(group_id=event.group_id, user_id=sender)
+    name = info["card"] if info["card"] else info["nickname"]
+    img = make_quotation(avatar, saying, name)
+    fname = f'quotation_{int(time())}.jpg'
+    path = CQ_PATH  + "/data/images/" + fname
+    img.save(path)
+    await bot.send(event, Message(MessageSegment.image(fname)))
+    remove(path)
+
+
 async def mental(event: Event, msg: Message):
     """发癫。
 
@@ -836,6 +867,7 @@ group_commands = {
     "/isbn": isbn,
     "/qr": qrcode,
     "/meme": meme,
+    "/quotation": quotation,
 }
 admin_group_commands = {
     "/ban": ban,
