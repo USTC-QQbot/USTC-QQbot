@@ -603,7 +603,11 @@ async def quotation(event: Event, msg: Message):
     avatar = get(f'http://q2.qlogo.cn/headimg_dl?dst_uin={sender}&spec=100').content
     info = await bot.get_group_member_info(group_id=event.group_id, user_id=sender)
     name = info["card"] if info["card"] else info["nickname"]
-    img = make_quotation(avatar, saying, name)
+    try:
+        img = make_quotation(avatar, saying, name)
+    except ValueError as e:
+        await bot.send(event, ', '.join(e.args))
+        return
     fname = f'quotation_{int(time())}.jpg'
     path = CQ_PATH  + "/data/images/" + fname
     img.save(path)
