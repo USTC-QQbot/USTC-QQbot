@@ -4,7 +4,7 @@ from io  import BytesIO
 
 WIDTH, HEIGHT = 1536, 512
 FONT_SIZE = 120
-FONT = ImageFont.truetype("./HYLinFengTiW.ttf", size=FONT_SIZE)
+FONT = ImageFont.truetype("./data/HYLinFengTiW.ttf", size=FONT_SIZE)
 PADDING = 30
 result = Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0))
 draw = ImageDraw.Draw(result)

@@ -14,6 +14,7 @@ from qrcode import make
 from requests import get
 
 from make_quotation import make_quotation
+from stretch_image import make_stretch_image
 from meme_recog import is_Capoo
 from ustc_auth import valid
 from ustc_covid import Covid
@@ -618,6 +619,23 @@ async def quotation(event: Event, msg: Message):
     remove(path)
 
 
+async def stretch(event: Event, msg: Message):
+    '''制作拉伸图：/stretch <text>'''
+    text = msg_to_txt(msg)
+    if not text:
+        await bot.send(event, "你要生成啥？")
+        return
+    elif len(text) > 30:
+        await bot.send(event, "字数太多辣！")
+        return
+    img = make_stretch_image(text)
+    fname = f"stretch_{int(time())}.jpg"
+    path = CQ_PATH  + "/data/images/" + fname
+    img.save(path)
+    await bot.send(event, Message(MessageSegment.image(fname)))
+    remove(path)
+
+
 async def mental(event: Event, msg: Message):
     """发癫。
 
@@ -855,6 +873,7 @@ private_commands = {
     "/isbn": isbn,
     "/qr": qrcode,
     "/meme": meme,
+    "/stretch": stretch,
 }
 group_commands = {
     "/roll": roll,
@@ -875,6 +894,7 @@ group_commands = {
     "/qr": qrcode,
     "/meme": meme,
     "/quotation": quotation,
+    "/stretch": stretch,
 }
 admin_group_commands = {
     "/ban": ban,
