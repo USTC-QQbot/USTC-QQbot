@@ -565,7 +565,10 @@ async def meme(event: Event, msg: Message):
             print(e)  # DEBUG
             await bot.send(event, "未能定位消息，请尝试使用手机QQ操作！")
             return
-        url = replied["data"]["url"]
+        url = replied["data"].get("url")
+        if not url:
+            await bot.send(event, "您未回复图片！")
+            return
     else:
         await bot.send(event, "您未回复图片！")
         return
