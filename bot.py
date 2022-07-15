@@ -363,7 +363,11 @@ async def isbn(event: Event, msg: Message):
 async def qrcode(event: Event, msg: Message):
     """制作二维码。"""
     data = msg_to_txt(msg)
-    qr = make(data)
+    try:
+        qr = make(data)
+    except:
+        await bot.send(event, "文本过大！")
+        return
     fname = f"qrcode_{int(time())}.png"
     path = CQ_PATH + "/data/images/" + fname
     qr.save(path)
@@ -799,8 +803,10 @@ async def config_group(event: Event, msg: Message):
         option, value = cmds[1:]
         if value.isdigit():
             value = int(value)
-        trans = {"true": True, "false": False}
-        if value.lower() in trans:
+        elif value.replace('.', '', 1).isdigit():
+            value = float(value)
+        if isinstance(value, str) and value.lower() in trans:
+            trans = {"true": True, "false": False}
             value = trans[value.lower()]
         set_config(option, value, func_name=cmds[0])
         await bot.send(event, "操作成功。")
