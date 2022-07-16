@@ -539,11 +539,11 @@ async def turntable(event: Event, msg: Message):
     """随机决定是否禁言指定范围内的一段时间。"""
     config = get_config()
     sender = event.sender["user_id"]
-    if not await can_ban(event):
+    if sender == 80000000 or not await can_ban(event):
         await bot.send(event, config["reject"])
         return
-    nickname = await bot.get_group_member_info(group_id=event.group_id, user_id=sender)
-    nickname = nickname["nickname"]
+    info = await bot.get_group_member_info(group_id=event.group_id, user_id=sender)
+    nickname = info["card"] if info["card"] else info["nickname"]
     if random() < config["probability"]:
         duration = randrange(config["min"], config["max"] + 1)
         await bot.set_group_ban(
@@ -697,7 +697,7 @@ async def help(event: Event, msg: Message):
         func = commands[command]
         await bot.send(
             event,
-            f"函数名: {func.__name__}\n" + func.__doc__.strip()
+            func.__doc__.strip()
             if func.__doc__
             else "此指令没有帮助信息。",
         )
