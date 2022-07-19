@@ -2,6 +2,7 @@ from inspect import currentframe, getframeinfo
 from json import dump, dumps, load
 from os import listdir, remove
 from os.path import isfile
+from shutil import copyfile
 from random import choice, random, randrange
 from re import search
 from time import strftime, time
@@ -589,6 +590,32 @@ async def meme(event: Event, msg: Message):
         await bot.send(event, Message(MessageSegment.image("error.gif")))
 
 
+async def parrot(event: Event, msg: Message):
+    '''🦜
+
+    /parrot - 随机发送一张 gif
+    /parrot <name> - 发送指定的 gif
+    '''
+    cmd = msg_to_txt(msg)
+    fname = f"parrot_{int(time())}.png"
+    path = CQ_PATH + "/data/images/" + fname
+    all_parrots = listdir("./parrots/")
+    if not cmd:
+        chosen = choice(all_parrots)
+    elif cmd in all_parrots:
+        chosen = cmd
+    elif cmd + ".gif" in all_parrots:
+        chosen = cmd + ".gif"
+    else:
+        await bot.send(event, "🦜 not found!")
+        return
+    copyfile("./parrots/" + chosen, path)
+    msg_ = Message(chosen[:-4])
+    msg_.append(MessageSegment.image(fname))
+    await bot.send(event, msg_)
+    remove(path)
+
+
 async def quotation(event: Event, msg: Message):
     '''制作语录。'''
     if len(msg):
@@ -880,6 +907,7 @@ private_commands = {
     "/qr": qrcode,
     "/meme": meme,
     "/stretch": stretch,
+    "/parrot": parrot,
 }
 group_commands = {
     "/roll": roll,
@@ -901,6 +929,7 @@ group_commands = {
     "/meme": meme,
     "/quotation": quotation,
     "/stretch": stretch,
+    "/parrot": parrot,
 }
 admin_group_commands = {
     "/ban": ban,
