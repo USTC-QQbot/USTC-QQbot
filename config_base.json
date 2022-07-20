@@ -17,12 +17,11 @@
         "fail": "公式错误！"
     },
     "turntable": {
-        "probability": 0.3,
+        "capacity": 6,
+        "bullets": 1,
+        "left": [0],
         "min": 60,
-        "max": 300,
-        "prompt_ban": "砰！一声枪响之后，{0}被禁言了{1}s！",
-        "prompt_safe": "{}无事发生",
-        "reject": "你是不是玩不起？"
+        "max": 300
     },
     "bracket": {
         "enabled": true

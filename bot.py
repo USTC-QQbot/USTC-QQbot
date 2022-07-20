@@ -3,7 +3,7 @@ from json import dump, dumps, load
 from os import listdir, remove
 from os.path import isfile
 from shutil import copyfile
-from random import choice, random, randrange
+from random import choice, sample, randrange
 from re import search
 from time import strftime, time
 from urllib.parse import quote
@@ -537,22 +537,37 @@ async def notice(event: Event, msg: Message):
 
 
 async def turntable(event: Event, msg: Message):
-    """随机决定是否禁言指定范围内的一段时间。"""
+    """俄罗斯轮盘赌。"""
     config = get_config()
     sender = event.sender["user_id"]
     if sender == 80000000 or not await can_ban(event):
-        await bot.send(event, config["reject"])
+        await bot.send(event, "你是不是玩不起？")
         return
     info = await bot.get_group_member_info(group_id=event.group_id, user_id=sender)
     nickname = info["card"] if info["card"] else info["nickname"]
-    if random() < config["probability"]:
+    left = config["left"]
+    load = True
+    shot = False
+    for i in range(len(left)):
+        left[i] -= 1
+        load = load and (left[i] <= 0)
+        shot = shot or (left[i] == 0)
+    if shot:
         duration = randrange(config["min"], config["max"] + 1)
         await bot.set_group_ban(
             group_id=event.group_id, user_id=sender, duration=duration
         )
-        await bot.send(event, config["prompt_ban"].format(nickname, duration))
+        await bot.send(event, "砰！一声枪响之后，{0}被禁言了{1}s！".format(nickname, duration))
     else:
-        await bot.send(event, config["prompt_safe"].format(nickname))
+        await bot.send(event, "{}无事发生".format(nickname))
+    if load:
+        capacity = config["capacity"]
+        bullets = config["bullets"]
+        assert capacity >= bullets
+        left = sample(range(1, capacity + 1), bullets)
+        left.sort()
+        await bot.send(event, "子弹射尽，已重新上膛。")
+    set_config("left", left)
 
 
 async def meme(event: Event, msg: Message):
