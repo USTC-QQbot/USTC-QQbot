@@ -614,7 +614,7 @@ async def parrot(event: Event, msg: Message):
     cmd = msg_to_txt(msg)
     fname = f"parrot_{int(time())}.png"
     path = CQ_PATH + "/data/images/" + fname
-    all_parrots = listdir("./parrots/")
+    all_parrots = listdir("./data/parrots/")
     if not cmd:
         chosen = choice(all_parrots)
     elif cmd in all_parrots:
@@ -624,7 +624,7 @@ async def parrot(event: Event, msg: Message):
     else:
         await bot.send(event, "🦜 not found!")
         return
-    copyfile("./parrots/" + chosen, path)
+    copyfile("./data/parrots/" + chosen, path)
     msg_ = Message(chosen[:-4])
     msg_.append(MessageSegment.image(fname))
     await bot.send(event, msg_)
