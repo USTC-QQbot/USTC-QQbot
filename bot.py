@@ -281,7 +281,7 @@ async def latex(event: Event, msg: Message):
     formula_ = f"${formula}$"
     fig = plt.figure(figsize=(0.01, 0.01))
     fig.text(0, 0, formula_, fontsize=18)
-    fname = f"latex_{int(time())}.png"
+    fname = f"latex_{time()}.png"
     path = CQ_PATH + "/data/images/" + fname
     try:
         fig.savefig(
@@ -369,7 +369,7 @@ async def qrcode(event: Event, msg: Message):
     except:
         await bot.send(event, "文本过大！")
         return
-    fname = f"qrcode_{int(time())}.png"
+    fname = f"qrcode_{time()}.png"
     path = CQ_PATH + "/data/images/" + fname
     qr.save(path)
     await bot.send(event, Message(MessageSegment.image(fname)))
@@ -612,7 +612,7 @@ async def parrot(event: Event, msg: Message):
     /parrot <name> - 发送指定的 gif
     '''
     cmd = msg_to_txt(msg)
-    fname = f"parrot_{int(time())}.png"
+    fname = f"parrot_{time()}.png"
     path = CQ_PATH + "/data/images/" + fname
     all_parrots = listdir("./data/parrots/")
     if not cmd:
@@ -627,7 +627,10 @@ async def parrot(event: Event, msg: Message):
     copyfile("./data/parrots/" + chosen, path)
     msg_ = Message(chosen[:-4])
     msg_.append(MessageSegment.image(fname))
-    await bot.send(event, msg_)
+    try:
+        await bot.send(event, msg_)
+    except exceptions.ActionFailed:
+        await bot.send(event, chosen[:-4] + "发送失败！")
     remove(path)
 
 
@@ -658,7 +661,7 @@ async def quotation(event: Event, msg: Message):
     except ValueError as e:
         await bot.send(event, ', '.join(e.args))
         return
-    fname = f'quotation_{int(time())}.jpg'
+    fname = f'quotation_{time()}.jpg'
     path = CQ_PATH  + "/data/images/" + fname
     img.save(path)
     await bot.send(event, Message(MessageSegment.image(fname)))
@@ -675,7 +678,7 @@ async def stretch(event: Event, msg: Message):
         await bot.send(event, "字数太多辣！")
         return
     img = make_stretch_image(text)
-    fname = f"stretch_{int(time())}.jpg"
+    fname = f"stretch_{time()}.jpg"
     path = CQ_PATH  + "/data/images/" + fname
     img.save(path)
     await bot.send(event, Message(MessageSegment.image(fname)))
