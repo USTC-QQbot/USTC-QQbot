@@ -288,7 +288,7 @@ async def latex(event: Event, msg: Message):
             path,
             dpi=750,
             transparent=False,
-            format=fname.split(".")[1],
+            format=fname.split(".")[-1],
             bbox_inches="tight",
             pad_inches=0.05,
         )
@@ -605,12 +605,36 @@ async def meme(event: Event, msg: Message):
         await bot.send(event, Message(MessageSegment.image("error.gif")))
 
 
+async def get_url(event: Event, msg: Message):
+    """获取回复的图片直链。"""
+    if len(msg):
+        reply_seg = msg[0]
+    else:
+        await bot.send(event, "您未回复图片！")
+        return
+    if reply_seg["type"] == "reply":
+        try:
+            replied = (await bot.get_msg(message_id=int(reply_seg["data"]["id"])))[
+                "message"
+            ][0]
+        except:
+            await bot.send(event, "未能定位消息，请尝试使用手机QQ操作！")
+            return
+        url = replied["data"].get("url")
+        if not url:
+            await bot.send(event, "您未回复图片！")
+            return
+        await bot.send(event, url)
+    else:
+        await bot.send(event, "您未回复图片！")
+
+
 async def parrot(event: Event, msg: Message):
-    '''🦜
+    """🦜
 
     /parrot - 随机发送一张 gif
     /parrot <name> - 发送指定的 gif
-    '''
+    """
     cmd = msg_to_txt(msg)
     fname = f"parrot_{time()}.png"
     path = CQ_PATH + "/data/images/" + fname
@@ -635,7 +659,7 @@ async def parrot(event: Event, msg: Message):
 
 
 async def quotation(event: Event, msg: Message):
-    '''制作语录。'''
+    """制作语录。"""
     if len(msg):
         reply_seg = msg[0]
     else:
@@ -643,7 +667,7 @@ async def quotation(event: Event, msg: Message):
         return
     if reply_seg["type"] == "reply":
         try:
-            replied = (await bot.get_msg(message_id=int(reply_seg["data"]["id"])))
+            replied = await bot.get_msg(message_id=int(reply_seg["data"]["id"]))
         except Exception as e:
             print(e)  # DEBUG
             await bot.send(event, "未能定位消息，请尝试使用手机QQ操作！")
@@ -651,25 +675,25 @@ async def quotation(event: Event, msg: Message):
     else:
         await bot.send(event, "您未回复消息！")
         return
-    saying = msg_to_txt(replied['message'])
-    sender = replied['sender']['user_id']
-    avatar = get(f'http://q2.qlogo.cn/headimg_dl?dst_uin={sender}&spec=100').content
+    saying = msg_to_txt(replied["message"])
+    sender = replied["sender"]["user_id"]
+    avatar = get(f"http://q2.qlogo.cn/headimg_dl?dst_uin={sender}&spec=100").content
     info = await bot.get_group_member_info(group_id=event.group_id, user_id=sender)
     name = info["card"] if info["card"] else info["nickname"]
     try:
         img = make_quotation(avatar, saying, name)
     except ValueError as e:
-        await bot.send(event, ', '.join(e.args))
+        await bot.send(event, ", ".join(e.args))
         return
-    fname = f'quotation_{time()}.jpg'
-    path = CQ_PATH  + "/data/images/" + fname
+    fname = f"quotation_{time()}.jpg"
+    path = CQ_PATH + "/data/images/" + fname
     img.save(path)
     await bot.send(event, Message(MessageSegment.image(fname)))
     remove(path)
 
 
 async def stretch(event: Event, msg: Message):
-    '''制作拉伸图：/stretch <text>'''
+    """制作拉伸图：/stretch <text>"""
     text = msg_to_txt(msg)
     if not text:
         await bot.send(event, "你要生成啥？")
@@ -679,7 +703,7 @@ async def stretch(event: Event, msg: Message):
         return
     img = make_stretch_image(text)
     fname = f"stretch_{time()}.jpg"
-    path = CQ_PATH  + "/data/images/" + fname
+    path = CQ_PATH + "/data/images/" + fname
     img.save(path)
     await bot.send(event, Message(MessageSegment.image(fname)))
     remove(path)
@@ -742,9 +766,7 @@ async def help(event: Event, msg: Message):
         func = commands[command]
         await bot.send(
             event,
-            func.__doc__.strip()
-            if func.__doc__
-            else "此指令没有帮助信息。",
+            func.__doc__.strip() if func.__doc__ else "此指令没有帮助信息。",
         )
     else:
         await bot.send(event, f'没有名为 "{command}" 的指令。')
@@ -848,7 +870,7 @@ async def config_group(event: Event, msg: Message):
         option, value = cmds[1:]
         if value.isdigit():
             value = int(value)
-        elif value.replace('.', '', 1).isdigit():
+        elif value.replace(".", "", 1).isdigit():
             value = float(value)
         if isinstance(value, str) and value.lower() in trans:
             trans = {"true": True, "false": False}
@@ -926,6 +948,7 @@ private_commands = {
     "/meme": meme,
     "/stretch": stretch,
     "/parrot": parrot,
+    "/url": get_url,
 }
 group_commands = {
     "/roll": roll,
@@ -948,6 +971,7 @@ group_commands = {
     "/quotation": quotation,
     "/stretch": stretch,
     "/parrot": parrot,
+    "/url": get_url,
 }
 admin_group_commands = {
     "/ban": ban,
@@ -955,11 +979,9 @@ admin_group_commands = {
 }
 su_private_commands = {"/enable": enable, "/disable": disable}
 su_group_commands = {
-    # "/ban": ban,
     "/enable": enable,
     "/disable": disable,
-    "/admin": admin
-    # "/config": config_group,
+    "/admin": admin,
 }
 
 with open("./data/mental.txt", encoding="utf-8") as f:
