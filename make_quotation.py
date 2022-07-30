@@ -28,20 +28,32 @@ def auto_split(text: str, max_length: int) -> str:
     return text
 
 
-def make_quotation(head: bytes, saying: str, author: str) -> Image.Image:
+def make_quotation(head: bytes, saying, author: str) -> Image.Image:
     global draw, result
     result = Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0))
     draw = ImageDraw.Draw(result)
     head = Image.open(BytesIO(head))
     head = head.resize((HEIGHT, HEIGHT))
-    saying = auto_split(saying, WIDTH - HEIGHT - 2 * PADDING)
-    if saying.count('\n') >= 4:
-        raise ValueError("句子过长！")
-    author = "--" + author
-
     result.paste(head, (0, 0))
-    draw.text((HEIGHT + PADDING, PADDING), saying, fill="white", font=FONT)
 
+    if isinstance(saying, str):
+        saying = auto_split(saying, WIDTH - HEIGHT - 2 * PADDING)
+        if saying.count('\n') >= 4:
+            raise ValueError("句子过长！")
+        draw.text((HEIGHT + PADDING, PADDING), saying, fill="white", font=FONT)
+    elif isinstance(saying, bytes):
+        pic = Image.open(BytesIO(saying))
+        size = pic.size
+        max_size = (1024 - PADDING, 362)
+        if size[0] / size[1] > max_size[0] / max_size[1]:
+            scale = max_size[0] / size[0]
+        else:
+            scale = max_size[1] / size[1]
+        pic = pic.resize((int(size[0] * scale), int(size[1] * scale)))
+        result.paste(pic, (512 + PADDING, 0))
+
+
+    author = "--" + author
     w = draw.textlength(author, font=FONT)
     draw.text(
         (WIDTH - w - PADDING, HEIGHT - FONT_SIZE - PADDING),

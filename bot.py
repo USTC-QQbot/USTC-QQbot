@@ -58,6 +58,13 @@ def get_mentioned(msg: Message) -> set:
     return set(map(int, mentioned))
 
 
+def get_pic(msg: Message) -> str:
+    for seg in msg:
+        if seg["type"] == "image":
+            return seg["data"]["url"]
+    return ''
+
+
 def load_config():
     global full_config, mental_templates
     full_config = {}
@@ -466,12 +473,12 @@ async def covid(event: Event, msg: Message):
             try:
                 replied = (await bot.get_msg(message_id=int(reply_seg["data"]["id"])))[
                     "message"
-                ][0]
+                ]
             except Exception as e:
                 print(e)  # DEBUG
                 await bot.send(event, "未能定位消息，请尝试使用手机QQ操作！")
                 return
-            url = replied["data"]["url"]
+            url = get_pic(replied)
             img = get(url).content
             # await bot.send(event, url)
         else:
@@ -581,12 +588,12 @@ async def meme(event: Event, msg: Message):
         try:
             replied = (await bot.get_msg(message_id=int(reply_seg["data"]["id"])))[
                 "message"
-            ][0]
+            ]
         except Exception as e:
             print(e)  # DEBUG
             await bot.send(event, "未能定位消息，请尝试使用手机QQ操作！")
             return
-        url = replied["data"].get("url")
+        url = get_pic(replied)
         if not url:
             await bot.send(event, "您未回复图片！")
             return
@@ -598,7 +605,7 @@ async def meme(event: Event, msg: Message):
         await bot.send(event, "是猫猫虫！")
         await bot.send(event, Message(MessageSegment.image("yes.gif")))
     elif result == 1:
-        await bot.send(event, "不是猫猫虫。")
+        await bot.send(event, "不是猫猫虫...")
         await bot.send(event, Message(MessageSegment.image("no.gif")))
     else:
         await bot.send(event, "未知错误！")
@@ -616,11 +623,11 @@ async def get_url(event: Event, msg: Message):
         try:
             replied = (await bot.get_msg(message_id=int(reply_seg["data"]["id"])))[
                 "message"
-            ][0]
+            ]
         except:
             await bot.send(event, "未能定位消息，请尝试使用手机QQ操作！")
             return
-        url = replied["data"].get("url")
+        url = get_pic(replied)
         if not url:
             await bot.send(event, "您未回复图片！")
             return
@@ -667,7 +674,8 @@ async def quotation(event: Event, msg: Message):
         return
     if reply_seg["type"] == "reply":
         try:
-            replied = await bot.get_msg(message_id=int(reply_seg["data"]["id"]))
+            ret = await bot.get_msg(message_id=int(reply_seg["data"]["id"]))
+            replied = ret["message"]
         except Exception as e:
             print(e)  # DEBUG
             await bot.send(event, "未能定位消息，请尝试使用手机QQ操作！")
@@ -675,8 +683,15 @@ async def quotation(event: Event, msg: Message):
     else:
         await bot.send(event, "您未回复消息！")
         return
-    saying = msg_to_txt(replied["message"])
-    sender = replied["sender"]["user_id"]
+    saying = msg_to_txt(replied)
+    if not saying:
+        url = get_pic(replied)
+        if not url:
+            await bot.send(event, "你回复了个啥？")
+            return
+        r = get(url)
+        saying = r.content
+    sender = ret["sender"]["user_id"]
     avatar = get(f"http://q2.qlogo.cn/headimg_dl?dst_uin={sender}&spec=100").content
     info = await bot.get_group_member_info(group_id=event.group_id, user_id=sender)
     name = info["card"] if info["card"] else info["nickname"]
