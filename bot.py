@@ -379,6 +379,7 @@ async def qrcode(event: Event, msg: Message):
     fname = f"qrcode_{time()}.png"
     path = CQ_PATH + "/data/images/" + fname
     qr.save(path)
+    qr.close()
     await bot.send(event, Message(MessageSegment.image(fname)))
     remove(path)
 
@@ -703,6 +704,7 @@ async def quotation(event: Event, msg: Message):
     fname = f"quotation_{time()}.jpg"
     path = CQ_PATH + "/data/images/" + fname
     img.save(path)
+    img.close()
     await bot.send(event, Message(MessageSegment.image(fname)))
     remove(path)
 
@@ -720,6 +722,7 @@ async def stretch(event: Event, msg: Message):
     fname = f"stretch_{time()}.jpg"
     path = CQ_PATH + "/data/images/" + fname
     img.save(path)
+    img.close()
     await bot.send(event, Message(MessageSegment.image(fname)))
     remove(path)
 

@@ -57,6 +57,7 @@ def is_Capoo(pic_path, from_url=False):
     else:
         img = Image.open(pic_path)
         img.save(path)
+    img.close()
     image_raw_data = tf.io.gfile.GFile(
         path, "rb"
     ).read()  # 先获取原始数据

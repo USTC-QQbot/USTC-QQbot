@@ -28,11 +28,11 @@ def auto_split(text: str, max_length: int) -> str:
     return text
 
 
-def make_quotation(head: bytes, saying, author: str) -> Image.Image:
+def make_quotation(head_data: bytes, saying, author: str) -> Image.Image:
     global draw, result
     result = Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0))
     draw = ImageDraw.Draw(result)
-    head = Image.open(BytesIO(head))
+    head = Image.open(BytesIO(head_data))
     head = head.resize((HEIGHT, HEIGHT))
     result.paste(head, (0, 0))
 
@@ -61,5 +61,5 @@ def make_quotation(head: bytes, saying, author: str) -> Image.Image:
         fill="white",
         font=FONT,
     )
-
+    head.close()
     return result
