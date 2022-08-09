@@ -715,7 +715,7 @@ async def stretch(event: Event, msg: Message):
     if not text:
         await bot.send(event, "你要生成啥？")
         return
-    elif len(text) > 30:
+    elif len(text) > 50:
         await bot.send(event, "字数太多辣！")
         return
     img = make_stretch_image(text)
