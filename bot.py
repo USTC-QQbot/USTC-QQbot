@@ -693,6 +693,9 @@ async def quotation(event: Event, msg: Message):
         r = get(url)
         saying = r.content
     sender = ret["sender"]["user_id"]
+    if sender == 80000000:
+        await bot.send(event, "暂不支持匿名消息。")
+        return
     avatar = get(f"http://q2.qlogo.cn/headimg_dl?dst_uin={sender}&spec=100").content
     info = await bot.get_group_member_info(group_id=event.group_id, user_id=sender)
     name = info["card"] if info["card"] else info["nickname"]

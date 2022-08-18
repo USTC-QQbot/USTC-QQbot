@@ -119,7 +119,7 @@ class Covid:
             ("start_date", strftime("%Y-%m-%d %H:%M:%S", localtime(t))),
             ("end_date", strftime("%Y-%m-%d 23:59:59", localtime(t))),
             ("reason", reason),
-            ("t", t),
+            ("t", "3"),
         ]
         for i in set(dest):
             if not i in "东西南北中":
