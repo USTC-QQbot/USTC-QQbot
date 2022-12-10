@@ -137,4 +137,4 @@ test/
 config_base.json
 config_override.json
 .vscode
-
+/data/ids/*

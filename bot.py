@@ -180,16 +180,16 @@ def get_cred(qq: int):
     return cred
 
 
-async def can_ban(event: Event) -> bool:
+async def can_ban(event: Event, refresh=False) -> bool:
     """是否能够禁言发送者"""
     group_id = event.group_id
     sender = event.sender["user_id"]
     if sender == 80000000:
         return False
-    self = await bot.get_group_member_info(group_id=group_id, user_id=event.self_id)
-    sender = await bot.get_group_member_info(group_id=group_id, user_id=sender)
+    self = await bot.get_group_member_info(group_id=group_id, user_id=event.self_id, no_cache=refresh)
+    sender = await bot.get_group_member_info(group_id=group_id, user_id=sender, no_cache=refresh)
     if sender["role"] == "owner" or self["role"] == "member":
-        return False
+        return can_ban(event, True)
     elif self["role"] == "owner":
         return True
     else:
@@ -548,7 +548,7 @@ async def turntable(event: Event, msg: Message):
     """俄罗斯轮盘赌。"""
     config = get_config()
     sender = event.sender["user_id"]
-    if sender == 80000000 or not await can_ban(event):
+    if not await can_ban(event):
         await bot.send(event, "你是不是玩不起？")
         return
     info = await bot.get_group_member_info(group_id=event.group_id, user_id=sender)
@@ -663,6 +663,25 @@ async def parrot(event: Event, msg: Message):
         await bot.send(event, msg_)
     except exceptions.ActionFailed:
         await bot.send(event, chosen[:-4] + "发送失败！")
+    remove(path)
+
+
+async def ikun(event: Event, msg: Message):
+    """🐔
+
+    /ikun - 随机发送一张坤坤
+    """
+    fname = f"ikun_{time()}.png"
+    path = CQ_PATH + "/data/images/" + fname
+    all_ikuns = listdir("./data/ikun/")
+    chosen = choice(all_ikuns)
+    copyfile("./data/ikun/" + chosen, path)
+    msg_ = Message()
+    msg_.append(MessageSegment.image(fname))
+    try:
+        await bot.send(event, msg_)
+    except exceptions.ActionFailed:
+        await bot.send(event, chosen + "发送失败！")
     remove(path)
 
 
@@ -877,25 +896,24 @@ async def config_group(event: Event, msg: Message):
         load_config()
         await bot.send(event, "已重新加载配置。")
         return
-    func = group_commands.get(("" if cmds[0].startswith("/") else "/") + cmds[0], None)
-    if not func:
+    func = group_commands.get(cmds[0], None)
+    if func:
+        config = get_config(func.__name__)
+    else:
+        config = get_config(cmds[0])
+    if not config:
         await bot.send(event, "未找到指定函数。")
         return
-    cmds[0] = func.__name__
-    config = get_config(cmds[0])
     if len(cmds) == 1:
         await bot.send(event, dumps(config, ensure_ascii=False, indent=4))
     elif len(cmds) == 2:
         await bot.send(event, str(config.get(cmds[1])))
     elif len(cmds) == 3:
         option, value = cmds[1:]
-        if value.isdigit():
-            value = int(value)
-        elif value.replace(".", "", 1).isdigit():
-            value = float(value)
-        if isinstance(value, str) and value.lower() in trans:
-            trans = {"true": True, "false": False}
-            value = trans[value.lower()]
+        try:
+            value = eval(value)
+        except:
+            pass
         set_config(option, value, func_name=cmds[0])
         await bot.send(event, "操作成功。")
 
@@ -970,6 +988,7 @@ private_commands = {
     "/stretch": stretch,
     "/parrot": parrot,
     "/url": get_url,
+    "/ikun": ikun,
 }
 group_commands = {
     "/roll": roll,
@@ -993,6 +1012,7 @@ group_commands = {
     "/stretch": stretch,
     "/parrot": parrot,
     "/url": get_url,
+    "/ikun": ikun,
 }
 admin_group_commands = {
     "/ban": ban,
@@ -1056,13 +1076,13 @@ async def handle_msg(event: Event):
 @bot.on_request("group")
 async def handle_group(event: Event):
     """Config `mode`: `accept`, `reject`, `all`.
-    COnfig `invite`: `accept`, `reject`, `ignore`."""
+    Config `invite`: `accept`, `reject`, `ignore`."""
     config = get_config()
     if event.sub_type == "add":
         flag = False
         m = search(r"答案：(\d+)", event.comment)
         if m:
-            flag = valid(event.user_id, m.groups()[0])
+            flag = valid(event.user_id, m.groups()[0], event.group_id)
         if config["mode"] == "accept":
             if flag:
                 await bot.set_group_add_request(

@@ -68,7 +68,7 @@ class Covid:
             return False, f"错误的状态码：{r.status_code}"
         url = r.headers["Location"]
         r = self.session.get(url)
-        if not "中国科大健康打卡平台" in r.text:
+        if not "中国科大打卡平台" in r.text:
             return False, "重定向错误！"
         soup = bs(r.text, features="html.parser")
         self.soup = soup
