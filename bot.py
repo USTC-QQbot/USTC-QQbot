@@ -13,6 +13,8 @@ from aiocqhttp import CQHttp, Event, Message, MessageSegment, exceptions
 from matplotlib import rcParams
 from qrcode import make
 from requests import get
+from socket import timeout
+from mcstatus import JavaServer
 
 from make_quotation import make_quotation
 from stretch_image import make_stretch_image
@@ -189,7 +191,7 @@ async def can_ban(event: Event, refresh=False) -> bool:
     self = await bot.get_group_member_info(group_id=group_id, user_id=event.self_id, no_cache=refresh)
     sender = await bot.get_group_member_info(group_id=group_id, user_id=sender, no_cache=refresh)
     if sender["role"] == "owner" or self["role"] == "member":
-        return can_ban(event, True)
+        return False
     elif self["role"] == "owner":
         return True
     else:
@@ -773,6 +775,42 @@ async def mental(event: Event, msg: Message):
     await bot.send(event, template.format(name).strip())
 
 
+async def mc(event: Event, msg: Message):
+    "查询指定的 MC Java 服务器状态。"
+    ip_addr = msg_to_txt(msg)
+    # 未指定 ip 地址，从配置文件查找默认 ip
+    if not ip_addr:
+        config = get_config()
+        if not config["ip"]:
+            await bot.send(event, "未指定服务器地址!")
+            return
+        else:
+            ip_addr = config["ip"]
+    # ip 地址合法性校验
+    try:
+        server = JavaServer.lookup(ip_addr)
+    except ValueError:
+        await bot.send(event, f"给定的服务器地址 \"{ip_addr}\" 不合法! 正确的服务器地址格式: example.com:25565")
+        return
+    except Exception as e:
+        await bot.send(event, f"未知错误: {e}!")
+        return
+    # 状态查询
+    try:
+        status = server.status()
+    except timeout:
+        await bot.send(event, f"服务器 \"{ip_addr}\" 超时!")
+        return
+    # 生成回复
+    response = f"服务器: \"{ip_addr}\"\n描述: {status.description}\n版本: {status.version.name}\t延迟: {round(status.latency, 2)}ms\t在线: {status.players.online}/{status.players.max}"
+    if status.players.sample:
+        response += "\n在线玩家: "
+        for player in status.players.sample:
+            response += player.name + ", "
+        response = response[:-2]
+    await bot.send(event, response)
+
+
 async def help(event: Event, msg: Message):
     """显示帮助信息。
 
@@ -989,6 +1027,7 @@ private_commands = {
     "/parrot": parrot,
     "/url": get_url,
     "/ikun": ikun,
+    "/mc": mc,
 }
 group_commands = {
     "/roll": roll,
@@ -1009,10 +1048,12 @@ group_commands = {
     "/qr": qrcode,
     "/meme": meme,
     "/quotation": quotation,
+    "/q": quotation,
     "/stretch": stretch,
     "/parrot": parrot,
     "/url": get_url,
     "/ikun": ikun,
+    "/mc": mc,
 }
 admin_group_commands = {
     "/ban": ban,

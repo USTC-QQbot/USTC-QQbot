@@ -26,6 +26,9 @@
     "bracket": {
         "enabled": true
     },
+    "mc": {
+        "ip": ""
+    },
     "notify": {
         "enabled": true,
         "lucky_king": {
