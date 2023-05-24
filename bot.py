@@ -797,7 +797,7 @@ async def uf(event: Event, msg: Message):
 
 
 async def mc(event: Event, msg: Message):
-    "查询指定的 MC Java 服务器状态。"
+    """查询指定的 MC Java 服务器状态。"""
     ip_addr = msg_to_txt(msg)
     # 未指定 ip 地址，从配置文件查找默认 ip
     if not ip_addr:
