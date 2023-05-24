@@ -15,10 +15,11 @@ from qrcode import make
 from requests import get
 from socket import timeout
 from mcstatus import JavaServer
+from pangu import spacing_text
 
 from make_quotation import make_quotation
 from stretch_image import make_stretch_image
-from meme_recog import is_Capoo
+# from meme_recog import is_Capoo
 from ustc_auth import valid
 from ustc_covid import Covid
 from ustc_news import request_rss
@@ -582,6 +583,8 @@ async def turntable(event: Event, msg: Message):
 
 async def meme(event: Event, msg: Message):
     """判断回复的图片是不是猫猫虫。"""
+    await bot.send(event, "由于性能原因，此功能被禁用！")
+    return
     if len(msg):
         reply_seg = msg[0]
     else:
@@ -832,6 +835,18 @@ async def mc(event: Event, msg: Message):
     await bot.send(event, response)
 
 
+async def pangu(event: Event, msg: Message):
+    """如果你跟我一樣，每次看到網頁上的中文字和英文、數字、符號擠在一塊，就會坐立難安，忍不住想在它們之間加個空格。這個外掛（支援 Chrome 和 Firefox）正是你在網路世界走跳所需要的東西，它會自動替你在網頁中所有的中文字和半形的英文、數字、符號之間插入空白。
+
+    漢學家稱這個空白字元為「盤古之白」，因為它劈開了全形字和半形字之間的混沌。另有研究顯示，打字的時候不喜歡在中文和英文之間加空格的人，感情路都走得很辛苦，有七成的比例會在 34 歲的時候跟自己不愛的人結婚，而其餘三成的人最後只能把遺產留給自己的貓。畢竟愛情跟書寫都需要適時地留白。
+    與大家共勉之。
+
+    https://github.com/vinta/pangu.py"""
+    text = msg_to_txt(msg)
+    text = spacing_text(text)
+    await bot.send(event, text)
+
+
 async def help(event: Event, msg: Message):
     """显示帮助信息。
 
@@ -1043,13 +1058,14 @@ private_commands = {
     "/covid": covid,
     "/isbn": isbn,
     "/qr": qrcode,
-    "/meme": meme,
+    # "/meme": meme,
     "/stretch": stretch,
     "/parrot": parrot,
     "/url": get_url,
     "/ikun": ikun,
     "/mc": mc,
     "/uf": uf,
+    "/pangu": pangu
 }
 group_commands = {
     "/roll": roll,
@@ -1068,7 +1084,7 @@ group_commands = {
     "/echo": echo,
     "/isbn": isbn,
     "/qr": qrcode,
-    "/meme": meme,
+    # "/meme": meme,
     "/quotation": quotation,
     "/q": quotation,
     "/stretch": stretch,
@@ -1076,7 +1092,8 @@ group_commands = {
     "/url": get_url,
     "/ikun": ikun,
     "/mc": mc,
-    "/uf": uf
+    "/uf": uf,
+    "/pangu": pangu
 }
 admin_group_commands = {
     "/ban": ban,
