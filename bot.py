@@ -775,6 +775,27 @@ async def mental(event: Event, msg: Message):
     await bot.send(event, template.format(name).strip())
 
 
+async def uf(event: Event, msg: Message):
+    """获取一条没有用的冷知识。
+    
+    /uf - 随机获取一条
+    /uf <id> - 获取指定 id 的冷知识
+    """
+    id_ = msg_to_txt(msg).strip()
+    if id_:
+        r = get('https://uselessfacts.jsph.pl/api/v2/facts/' + id_)
+    else:
+        r = get('https://uselessfacts.jsph.pl/api/v2/facts/random')
+    if not r.text.startswith('{'):
+        await bot.send(event, "获取失败：" + r.text)
+        return
+    r = r.json()
+    id_ = r['id']
+    source = r['source_url']
+    content = r['text']
+    await bot.send(event, f"{content}\n\nFrom: {source}\nID: {id_}")
+
+
 async def mc(event: Event, msg: Message):
     "查询指定的 MC Java 服务器状态。"
     ip_addr = msg_to_txt(msg)
@@ -1028,6 +1049,7 @@ private_commands = {
     "/url": get_url,
     "/ikun": ikun,
     "/mc": mc,
+    "/uf": uf,
 }
 group_commands = {
     "/roll": roll,
@@ -1054,6 +1076,7 @@ group_commands = {
     "/url": get_url,
     "/ikun": ikun,
     "/mc": mc,
+    "/uf": uf
 }
 admin_group_commands = {
     "/ban": ban,
