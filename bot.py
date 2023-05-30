@@ -21,7 +21,6 @@ from make_quotation import make_quotation
 from stretch_image import make_stretch_image
 # from meme_recog import is_Capoo
 from ustc_auth import valid
-from ustc_covid import Covid
 from ustc_news import request_rss
 from ustc_young import Young
 
@@ -347,6 +346,11 @@ async def wtf(event: Event, msg: Message):
     )
 
 
+async def just_ask(event: Event, msg: Message):
+    """不要问有没有人，请直接问。"""
+    await bot.send(event, "不要问有没有人，请直接问\n  中译：https://fars.ee/~justask.html\n  原文：https://sol.gfxile.net/dontask.html")
+
+
 async def isbn(event: Event, msg: Message):
     """根据提供的 ISBN 号查询书籍信息。"""
     serial = msg_to_txt(msg).partition(" ")[0]
@@ -433,103 +437,6 @@ async def young(event: Event, msg: Message):
         return
     r = clint.get_activity(hide_entered=not show_all)
     await bot.send(event, r)
-
-
-async def covid(event: Event, msg: Message):
-    """健康打卡相关操作。
-
-    <回复图片> + /covid - 打卡、上传行程卡并报备（目前仅支持本科生）。
-    <回复图片> + /covid trip - 上传行程卡。
-    <回复图片> + /covid report - 上传核酸检测报告。
-    /covid status - 查看当前状态（在校/在校可跨校区/...）。
-    /covid checkin - 打卡（表格数据沿用上次填写内容）。
-    /covid claim - 报备（仅支持“前往东西南北中校区”）。
-    * 除了账号密码，需额外配置 cred 的 "covid_dest" 项目为目的地，"covid_reason" 为进出校原因。
-    * 示例： /cred covid_dest 东西中, /cred covid_reason 上课/自习
-    """
-    cred = get_cred(event.sender.get("user_id"))
-    for v in "username", "password", "covid_dest", "covid_reason":
-        if not v in cred:
-            await bot.send(event, f'您未配置 "{v}"!')
-            return
-    cmds = msg_to_txt(msg).split()
-    all_ = {"trip", "report", "status", "checkin", "claim"}
-    if len(cmds) == 0:
-        ops = ["checkin", "trip", "claim"]
-        upload_pic = True
-    elif len(cmds) == 1:
-        if cmds[0] in all_:
-            ops = [cmds[0]]
-            upload_pic = cmds[0] in {"trip", "report"}
-        else:
-            await bot.send(event, "无效参数！")
-            return
-    else:
-        await bot.send(event, "参数过多！")
-        return
-    if upload_pic:
-        if len(msg):
-            reply_seg = msg[0]
-        else:
-            await bot.send(event, "您未回复图片！")
-            return
-        if reply_seg["type"] == "reply":
-            try:
-                replied = (await bot.get_msg(message_id=int(reply_seg["data"]["id"])))[
-                    "message"
-                ]
-            except Exception as e:
-                print(e)  # DEBUG
-                await bot.send(event, "未能定位消息，请尝试使用手机QQ操作！")
-                return
-            url = get_pic(replied)
-            img = get(url).content
-            # await bot.send(event, url)
-        else:
-            await bot.send(event, "你没有回复消息！")
-            return
-    reply = []
-    cov = Covid(cred["username"], cred["password"])
-    r = cov.login()
-    if not r[0]:
-        reply.append("登录失败：" + r[1])
-    else:
-        reply.append("登录成功。")
-    for op in ops:
-        if op == "trip":
-            r = cov.upload(img, 1)
-            if not r[0]:
-                reply.append("行程卡上传失败：" + r[1])
-            else:
-                reply.append("行程卡上传成功！")
-        elif op == "report":
-            r = cov.upload(img, 3)
-            if not r[0]:
-                reply.append("核酸检测报告上传失败：" + r[1])
-            else:
-                reply.append("核酸检测报告上传成功！")
-        elif op == "status":
-            reply.append("当前状态：" + cov.status())
-        elif op == "checkin":
-            r = cov.checkin()
-            if not r[0]:
-                reply.append("打卡失败：" + r[1])
-            else:
-                reply.append("打卡成功！")
-        elif op == "claim":
-            r = cov.claim(cred["covid_dest"], cred["covid_reason"])
-            if not r[0]:
-                reply.append("报备失败：" + r[1])
-            else:
-                reply.append("报备成功！")
-        else:
-            return
-    r = cov.logout()
-    if not r:
-        reply.append("登出失败！")
-    else:
-        reply.append("登出成功。")
-    await bot.send(event, "\n".join(reply))
 
 
 async def notice(event: Event, msg: Message):
@@ -1055,7 +962,6 @@ private_commands = {
     "/cred": credential,
     "/young": young,
     "/echo": echo,
-    "/covid": covid,
     "/isbn": isbn,
     "/qr": qrcode,
     # "/meme": meme,
@@ -1073,6 +979,8 @@ group_commands = {
     "/提问的智慧": smart_question,
     "/rtfm": wtf,
     "/stfw": wtf,
+    "/justask": just_ask,
+    "/直接问": just_ask,
     "/query": query,
     "/help": help,
     "/latex": latex,

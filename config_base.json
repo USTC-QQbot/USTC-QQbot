@@ -4,6 +4,7 @@
         "end": 6
     },
     "query": {
+	"enabled": false,
         "insufficient": "参数不足！",
         "format": "{0}老师的搜索结果：{1}",
         "engine": "https://cn.bing.com/search?q={}+site%3Austc.edu.cn"
